@@ -542,12 +542,12 @@ public class CallableStatementImpl extends PreparedStatementImpl implements Call
     }
 
     public void setNull(String parameterName, int sqlType) throws SQLException {
-        setObject((Object) parameterName, null);
+        setTypedNull(parameterName, sqlType, null);
     }
 
     public void setNull(String parameterName, int sqlType, String typeName)
             throws SQLException {
-        setObject((Object) parameterName, null);
+        setTypedNull(parameterName, sqlType, typeName);
     }
 
     public void setObject(String parameterName, Object x) throws SQLException {
@@ -562,6 +562,18 @@ public class CallableStatementImpl extends PreparedStatementImpl implements Call
     public void setObject(String parameterName, Object x, int targetSqlType,
                           int scale) throws SQLException {
         setObject((Object) parameterName, x, targetSqlType, scale);
+    }
+
+    @Override
+    public void setObject(String parameterName, Object x, SQLType targetSqlType)
+            throws SQLException {
+        setObject((Object) parameterName, x, targetSqlType);
+    }
+
+    @Override
+    public void setObject(String parameterName, Object x, SQLType targetSqlType,
+                          int scaleOrLength) throws SQLException {
+        setObject((Object) parameterName, x, targetSqlType, scaleOrLength);
     }
 
     public void setRowId(String parameterName, RowId x) throws SQLException {

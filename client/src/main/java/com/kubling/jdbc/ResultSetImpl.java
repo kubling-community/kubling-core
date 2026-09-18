@@ -27,7 +27,6 @@ import com.kubling.client.lob.LobChunkInputStream;
 import com.kubling.client.lob.StreamingLobChunckProducer;
 import com.kubling.client.plan.PlanNode;
 import com.kubling.client.util.ResultsFuture;
-import com.kubling.core.KublingComponentException;
 import com.kubling.core.KublingProcessingException;
 import com.kubling.core.types.*;
 import com.kubling.core.util.PropertiesUtils;
@@ -38,8 +37,8 @@ import java.io.InputStream;
 import java.io.Reader;
 import java.math.BigDecimal;
 import java.net.URL;
-import java.sql.Date;
 import java.sql.*;
+import java.sql.Date;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -68,6 +67,7 @@ public class ResultSetImpl extends WrapperImpl implements KublingResultSet, Batc
 
     // reuse the original request's state
     private final long requestID;
+    private final long resultID;
     private final BatchResults batchResults;
     private final int columnCount;
     private final int resultColumns;
@@ -96,15 +96,21 @@ public class ResultSetImpl extends WrapperImpl implements KublingResultSet, Batc
     private Boolean disableFetchSize;
 
     ResultSetImpl(ResultsMessage resultsMsg, StatementImpl statement) throws SQLException {
-        this(resultsMsg, statement, null, 0);
+        this(resultsMsg, statement, null, 0, true);
     }
 
     ResultSetImpl(ResultsMessage resultsMsg, StatementImpl statement,
                   ResultSetMetaData metadata, int parameters) throws SQLException {
+        this(resultsMsg, statement, metadata, parameters, true);
+    }
+
+    ResultSetImpl(ResultsMessage resultsMsg, StatementImpl statement,
+                  ResultSetMetaData metadata, int parameters, boolean serverBacked) throws SQLException {
         this.statement = statement;
         this.parameters = parameters;
         // server latency-related timestamp
-        this.requestID = statement.getCurrentRequestID();
+        this.requestID = serverBacked ? statement.getCurrentRequestID() : -1;
+        this.resultID = resultsMsg.getResultId();
         this.cursorType = statement.getResultSetType();
         this.serverTimeZone = statement.getServerTimeZone();
         if (metadata == null) {
@@ -139,22 +145,17 @@ public class ResultSetImpl extends WrapperImpl implements KublingResultSet, Batc
 
     public void close() throws SQLException {
         if (!isClosed) {
-            // close the server's statement object (if necessary)
-            if (this.requestID >= 0) {
-                this.statement.checkStatement();
-                try {
-                    this.statement.getDQP().closeRequest(requestID);
-                } catch (KublingProcessingException | KublingComponentException e) {
-                    throw KublingSQLException.create(e);
-                }
-            }
             isClosed = true;
+            this.statement.resultSetClosed(this);
         }
-        //we can do this because the statement can only have a
-        //single resultset open currently
-        if (this.statement.isCloseOnCompletion()) {
-            this.statement.close();
-        }
+    }
+
+    long getRequestID() {
+        return requestID;
+    }
+
+    long getResultID() {
+        return resultID;
     }
 
     public boolean isClosed() {
@@ -390,7 +391,11 @@ public class ResultSetImpl extends WrapperImpl implements KublingResultSet, Batc
             logger.finer("requestBatch requestID: " + requestID + " beginRow: " + beginRow);
         }
         try {
-            results = statement.getDQP().processCursorRequest(requestID, beginRow, fetchSize);
+            if (resultID == ResultsMessage.LEGACY_RESULT_ID) {
+                results = statement.getDQP().processCursorRequest(requestID, beginRow, fetchSize);
+            } else {
+                results = statement.getDQP().processCursorRequest(requestID, resultID, beginRow, fetchSize);
+            }
         } catch (KublingProcessingException e) {
             throw KublingSQLException.create(e);
         }

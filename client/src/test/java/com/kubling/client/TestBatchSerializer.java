@@ -204,6 +204,18 @@ public class TestBatchSerializer {
     }
 
     @Test
+    public void testGeographyWithUnknownSrid() throws IOException, ClassNotFoundException {
+        GeographyType geographyType = GeographyType.withUnknownSrid(new byte[0]);
+        geographyType.setReferenceStreamId(null);
+
+        Object val = helpTestSerialization(new String[]{DataTypeManager.DefaultDataTypes.GEOGRAPHY},
+                new List[]{List.of(geographyType)}, BatchSerializer.VERSION_GEOGRAPHY).getFirst().getFirst();
+
+        assertInstanceOf(GeographyType.class, val);
+        assertEquals(GeometryType.UNKNOWN_SRID, ((GeographyType) val).getSrid());
+    }
+
+    @Test
     public void testJson() throws IOException, ClassNotFoundException {
         JsonType json = new JsonType(new ClobImpl("5"));
         json.setReferenceStreamId(null);

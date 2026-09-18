@@ -25,6 +25,7 @@ package com.kubling.core.types;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
+import java.io.Serial;
 import java.lang.ref.Reference;
 import java.lang.ref.SoftReference;
 import java.lang.ref.WeakReference;
@@ -36,6 +37,9 @@ import java.sql.Blob;
  * Simply a blob reference with a srid.
  */
 public abstract class AbstractGeospatialType extends BlobType {
+
+    @Serial
+    private static final long serialVersionUID = -7977104607250137916L;
 
     private int srid;
     private Reference<?> geoCache;
@@ -57,6 +61,13 @@ public abstract class AbstractGeospatialType extends BlobType {
     }
 
     public void setSrid(int srid) {
+        setSridDirect(srid);
+    }
+
+    /**
+     * Assigns the serialized SRID without applying subtype defaults.
+     */
+    protected final void setSridDirect(int srid) {
         this.srid = srid;
     }
 
@@ -70,7 +81,7 @@ public abstract class AbstractGeospatialType extends BlobType {
     public void readExternal(ObjectInput in) throws IOException,
             ClassNotFoundException {
         super.readExternal(in);
-        srid = in.readInt();
+        setSridDirect(in.readInt());
     }
 
     /**
@@ -100,7 +111,7 @@ public abstract class AbstractGeospatialType extends BlobType {
 
     public synchronized void copyTo(AbstractGeospatialType geo) {
         geo.setGeoCache(geoCache == null ? null : geoCache.get());
-        geo.setSrid(srid);
+        geo.setSridDirect(srid);
         geo.setReference(this.reference);
     }
 

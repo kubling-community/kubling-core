@@ -22,9 +22,14 @@
 
 package com.kubling.core.types;
 
+import java.io.Serial;
 import java.sql.Blob;
 
 public final class GeographyType extends AbstractGeospatialType {
+
+    @Serial
+    private static final long serialVersionUID = 7304786855176679353L;
+
     public static final int DEFAULT_SRID = 4326;
 
     public GeographyType() {
@@ -47,6 +52,24 @@ public final class GeographyType extends AbstractGeospatialType {
     public GeographyType(byte[] bytes, int srid) {
         super(bytes);
         setSrid(srid);
+    }
+
+    /**
+     * Creates a geography whose coordinate reference system is explicitly unknown.
+     */
+    public static GeographyType withUnknownSrid(Blob blob) {
+        GeographyType result = new GeographyType(blob);
+        result.setSridDirect(GeometryType.UNKNOWN_SRID);
+        return result;
+    }
+
+    /**
+     * Creates a geography whose coordinate reference system is explicitly unknown.
+     */
+    public static GeographyType withUnknownSrid(byte[] bytes) {
+        GeographyType result = new GeographyType(bytes);
+        result.setSridDirect(GeometryType.UNKNOWN_SRID);
+        return result;
     }
 
     @Override

@@ -23,10 +23,7 @@
 package com.kubling.core.types;
 
 import java.sql.*;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /**
  * <p> This is a helper class used to obtain SQL type information for java types.
@@ -372,6 +369,52 @@ public final class JDBCSQLTypeInfo {
         }
 
         return typeInfo.name;
+    }
+
+    public static boolean isSupportedType(int sqlType) {
+        return TYPE_TO_TYPEINFO.containsKey(sqlType);
+    }
+
+    /**
+     * Resolve a JDBC type name or Kubling logical type name to its canonical
+     * logical representation. Array dimensions are preserved.
+     *
+     * @return the canonical type name, or {@code null} when the name is not supported
+     */
+    public static String normalizeTypeName(String typeName) {
+        if (typeName == null || typeName.isBlank()) {
+            return null;
+        }
+
+        String normalized = typeName.trim().toLowerCase(Locale.ROOT);
+        StringBuilder arraySuffix = new StringBuilder();
+        while (DataTypeManager.isArrayType(normalized)) {
+            normalized = DataTypeManager.getComponentType(normalized);
+            arraySuffix.append(DataTypeManager.ARRAY_SUFFIX);
+        }
+
+        TypeInfo typeInfo = NAME_TO_TYPEINFO.get(normalized);
+        if (typeInfo == null) {
+            return null;
+        }
+        return typeInfo.name + arraySuffix;
+    }
+
+    public static boolean isTypeNameCompatible(int sqlType, String typeName) {
+        if (sqlType == Types.ARRAY) {
+            return DataTypeManager.isArrayType(typeName);
+        }
+
+        TypeInfo typeInfo = NAME_TO_TYPEINFO.get(typeName);
+        if (typeInfo == null) {
+            return false;
+        }
+        for (int candidate : typeInfo.jdbcTypes) {
+            if (candidate == sqlType) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static Set<String> getMMTypeNames() {

@@ -134,6 +134,23 @@ public class StatementImpl extends WrapperImpl implements KublingStatement {
     // resultSet object produced by execute methods on the statement.
     protected volatile ResultSetImpl resultSet;
 
+    // Generated keys are accessory to an update and are not part of the
+    // heterogeneous result sequence exposed by getMoreResults().
+    private ResultSetImpl generatedKeysResultSet;
+
+    // Result sets retained with KEEP_CURRENT_RESULT remain owned by this
+    // statement until they or the statement are closed.
+    private final Set<ResultSetImpl> openResultSets =
+            Collections.newSetFromMap(new IdentityHashMap<>());
+    private final Set<ResultSetImpl> keptResultSets =
+            Collections.newSetFromMap(new IdentityHashMap<>());
+
+    private int currentUpdateCount = -1;
+    private boolean moreResultsExpected;
+    private long currentResultID = ResultsMessage.LEGACY_RESULT_ID;
+    private boolean requestClosed = true;
+    private boolean suppressResultSetClose;
+
     private List<Throwable> serverWarnings;
 
     // the per-execution security payload
@@ -219,23 +236,24 @@ public class StatementImpl extends WrapperImpl implements KublingStatement {
      * a new command.
      */
     protected synchronized void resetExecutionState() throws SQLException {
+        long previousRequestID = this.currentRequestID;
+
+        closeExecutionResults();
+        closeRequest(previousRequestID);
         this.currentRequestID = -1;
+        this.requestClosed = true;
 
         this.currentPlanDescription = null;
         this.debugLog = null;
         this.annotations = null;
 
-        if (this.resultSet != null) {
-            ResultSet rs = this.resultSet;
-            this.resultSet = null;
-            rs.close();
-            checkStatement();
-        }
-
         this.serverWarnings = null;
 
         this.batchedUpdates = null;
         this.updateCounts = null;
+        this.currentUpdateCount = -1;
+        this.moreResultsExpected = false;
+        this.currentResultID = ResultsMessage.LEGACY_RESULT_ID;
         this.outParamIndexMap.clear();
         this.outParamByName.clear();
         this.commandStatus = State.RUNNING;
@@ -288,17 +306,25 @@ public class StatementImpl extends WrapperImpl implements KublingStatement {
         }
     }
 
-    public void close() throws SQLException {
+    public synchronized void close() throws SQLException {
         if (isClosed) {
             return;
         }
 
-        // close the server's statement object (if necessary)
-        if (resultSet != null) {
-            ResultSet rs = this.resultSet;
-            resultSet = null;
-            rs.close();
-
+        SQLException failure = null;
+        try {
+            closeExecutionResults();
+        } catch (SQLException e) {
+            failure = e;
+        }
+        try {
+            closeRequest(this.currentRequestID);
+        } catch (SQLException e) {
+            if (failure == null) {
+                failure = e;
+            } else {
+                failure.addSuppressed(e);
+            }
         }
 
         isClosed = true;
@@ -309,6 +335,90 @@ public class StatementImpl extends WrapperImpl implements KublingStatement {
         if (logger.isLoggable(Level.FINE)) {
             logger.fine(JDBCPlugin.Util.getString("MMStatement.Close_stmt_success"));
         }
+        if (failure != null) {
+            throw failure;
+        }
+    }
+
+    private void closeExecutionResults() throws SQLException {
+        SQLException failure = null;
+        boolean previousSuppress = suppressResultSetClose;
+        suppressResultSetClose = true;
+        try {
+            for (ResultSetImpl openResultSet : new ArrayList<>(openResultSets)) {
+                try {
+                    openResultSet.close();
+                } catch (SQLException e) {
+                    if (failure == null) {
+                        failure = e;
+                    } else {
+                        failure.addSuppressed(e);
+                    }
+                }
+            }
+        } finally {
+            suppressResultSetClose = previousSuppress;
+            openResultSets.clear();
+            keptResultSets.clear();
+            resultSet = null;
+            generatedKeysResultSet = null;
+        }
+        if (failure != null) {
+            throw failure;
+        }
+    }
+
+    private void closeRequest(long requestID) throws SQLException {
+        if (requestID < 0 || (requestID == this.currentRequestID && requestClosed)) {
+            return;
+        }
+        try {
+            getDQP().closeRequest(requestID);
+            if (requestID == this.currentRequestID) {
+                requestClosed = true;
+            }
+        } catch (KublingProcessingException | KublingComponentException e) {
+            throw KublingSQLException.create(e);
+        }
+    }
+
+    synchronized void resultSetClosed(ResultSetImpl closedResultSet) throws SQLException {
+        openResultSets.remove(closedResultSet);
+        keptResultSets.remove(closedResultSet);
+        if (suppressResultSetClose) {
+            return;
+        }
+        closeResult(closedResultSet);
+        if (closeOnCompletion && !moreResultsExpected && openResultSets.isEmpty()) {
+            close();
+            return;
+        }
+        if (!moreResultsExpected && !hasOpenResults(closedResultSet.getRequestID())) {
+            closeRequest(closedResultSet.getRequestID());
+        }
+    }
+
+    private void closeResult(ResultSetImpl closedResultSet) throws SQLException {
+        if (closedResultSet.getRequestID() < 0
+                || closedResultSet.getResultID() == ResultsMessage.LEGACY_RESULT_ID
+                || requestClosed) {
+            return;
+        }
+        try {
+            getDQP().closeResultRequest(
+                    closedResultSet.getRequestID(), closedResultSet.getResultID());
+        } catch (KublingProcessingException | KublingComponentException e) {
+            throw KublingSQLException.create(e);
+        }
+    }
+
+    private boolean hasOpenResults(long requestID) {
+        for (ResultSetImpl openResultSet : openResultSets) {
+            if (!openResultSet.isClosed() && openResultSet.getRequestID() == requestID) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -362,13 +472,20 @@ public class StatementImpl extends WrapperImpl implements KublingStatement {
     }
 
     protected boolean hasResultSet() throws SQLException {
-        return updateCounts == null && resultSet != null && resultSet.getMetaData().getColumnCount() > 0;
+        return currentUpdateCount == -1 && resultSet != null
+                && resultSet.getMetaData().getColumnCount() > 0;
+    }
+
+    protected boolean hasUpdateCount() {
+        return currentUpdateCount >= 0;
     }
 
     protected void createResultSet(ResultsMessage resultsMsg) throws SQLException {
         //create out/return parameter index map if there is any
         List listOfParameters = resultsMsg.getParameters();
         if (listOfParameters != null) {
+            outParamIndexMap.clear();
+            outParamByName.clear();
             //get the size of result set
             int resultSetSize = 0;
             Iterator iteratorOfParameters = listOfParameters.iterator();
@@ -411,12 +528,23 @@ public class StatementImpl extends WrapperImpl implements KublingStatement {
                 }
             }
         }
-        ResultSetMetaData metadata = null;
-        if (updateCounts != null) {
-            metadata = createResultSetMetaData(createMetadataMap(resultsMsg.getColumnNames(), resultsMsg.getDataTypes()));
-        }
-        resultSet = new ResultSetImpl(resultsMsg, this, metadata, outParamIndexMap.size());
-        resultSet.setMaxFieldSize(this.maxFieldSize);
+        int parameterCount = listOfParameters == null ? 0 : outParamIndexMap.size();
+        resultSet = newResultSet(resultsMsg, null, parameterCount, true);
+    }
+
+    private ResultSetImpl createGeneratedKeysResultSet(ResultsMessage resultsMsg) throws SQLException {
+        ResultSetMetaData metadata = createResultSetMetaData(
+                createMetadataMap(resultsMsg.getColumnNames(), resultsMsg.getDataTypes()));
+        return newResultSet(resultsMsg, metadata, 0, true);
+    }
+
+    private ResultSetImpl newResultSet(ResultsMessage resultsMsg, ResultSetMetaData metadata,
+                                       int parameterCount, boolean serverBacked) throws SQLException {
+        ResultSetImpl newResultSet = new ResultSetImpl(
+                resultsMsg, this, metadata, parameterCount, serverBacked);
+        newResultSet.setMaxFieldSize(this.maxFieldSize);
+        openResultSets.add(newResultSet);
+        return newResultSet;
     }
 
     protected ResultsFuture<Boolean> executeSql(
@@ -490,14 +618,14 @@ public class StatementImpl extends WrapperImpl implements KublingStatement {
                 } else {
                     this.driverConnection.setExecutionProperty(key, value);
                 }
-                this.updateCounts = new int[]{0};
+                this.currentUpdateCount = 0;
                 return booleanFuture(false);
             }
             match = SET_CHARACTERISTIC_STATEMENT.matcher(commands[0]);
             if (match.matches()) {
                 String value = match.group(1);
                 setIsolationLevel(value);
-                this.updateCounts = new int[]{0};
+                this.currentUpdateCount = 0;
                 return booleanFuture(false);
             }
             match = TRANSACTION_STATEMENT.matcher(commands[0]);
@@ -549,7 +677,7 @@ public class StatementImpl extends WrapperImpl implements KublingStatement {
                         this.getConnection().rollback(false);
                     }
                 }
-                this.updateCounts = new int[]{0};
+                this.currentUpdateCount = 0;
                 if (commit != null && !synch) {
                     ResultsFuture<?> pending = this.getConnection().submitSetAutoCommitTrue(commit);
                     final ResultsFuture<Boolean> result = new ResultsFuture<>();
@@ -721,6 +849,7 @@ public class StatementImpl extends WrapperImpl implements KublingStatement {
     private ResultsFuture<ResultsMessage> execute(final RequestMessage reqMsg, boolean synch) throws SQLException {
         this.getConnection().beginLocalTxnIfNeeded();
         this.currentRequestID = this.driverConnection.nextRequestID();
+        this.requestClosed = false;
         // Create a request message
         if (this.payload != null) {
             reqMsg.setExecutionPayload(this.payload);
@@ -773,58 +902,110 @@ public class StatementImpl extends WrapperImpl implements KublingStatement {
     private synchronized void postReceiveResults(RequestMessage reqMessage,
                                                  ResultsMessage resultsMsg) throws SQLException {
         commandStatus = State.DONE;
-        // warnings thrown
-        List resultsWarning = resultsMsg.getWarnings();
-        // save warnings if any
-        if (resultsWarning != null) {
-            accumulateWarnings(resultsWarning);
-        }
-
-        setAnalysisInfo(resultsMsg);
-
-        //throw an exception unless this represents a batch update exception
-        if (resultsMsg.getException() != null && (!resultsMsg.isUpdateResult() || resultsMsg.getResultsList() == null)) {
-            throw KublingSQLException.create(resultsMsg.getException());
-        }
-
-        resultsMsg.processResults();
-
-        if (resultsMsg.isUpdateResult()) {
-            List<? extends List<?>> results = resultsMsg.getResultsList();
-            if (resultsMsg.getUpdateCount() == -1) {
-                this.updateCounts = new int[results.size()];
-                for (int i = 0; i < results.size(); i++) {
-                    updateCounts[i] = (Integer) results.get(i).getFirst();
-                }
-            } else {
-                this.updateCounts = new int[]{resultsMsg.getUpdateCount()};
-                this.createResultSet(resultsMsg);
-            }
-            if (logger.isLoggable(Level.FINER)) {
-                logger.finer("Received update counts: " + Arrays.toString(updateCounts));
-            }
-            // In update scenarios close the statement implicitly - the server should have already done this
-            try {
-                getDQP().closeRequest(getCurrentRequestID());
-            } catch (KublingProcessingException | KublingComponentException e) {
-                throw KublingSQLException.create(e);
-            }
-
-            //handle a batch update exception
-            if (resultsMsg.getException() != null) {
-                KublingSQLException exe = KublingSQLException.create(resultsMsg.getException());
-                BatchUpdateException batchUpdateException =
-                        new BatchUpdateException(exe.getMessage(), exe.getSQLState(), exe.getErrorCode(), updateCounts, exe);
-                this.updateCounts = null;
-                throw batchUpdateException;
-            }
+        if (reqMessage.isBatchedUpdate()) {
+            receiveBatchResults(resultsMsg);
         } else {
-            createResultSet(resultsMsg);
+            positionOnResult(resultsMsg);
         }
 
         if (logger.isLoggable(Level.FINE)) {
             logger.fine(JDBCPlugin.Util.getString("MMStatement.Success_query", reqMessage.getCommandString()));
         }
+    }
+
+    private void receiveBatchResults(ResultsMessage resultsMsg) throws SQLException {
+        receiveResultHeader(resultsMsg);
+
+        // A batch may carry both the successfully completed counts and its
+        // terminal error.
+        if (resultsMsg.getException() != null
+                && (!resultsMsg.isUpdateResult() || resultsMsg.getResultsList() == null)) {
+            throw KublingSQLException.create(resultsMsg.getException());
+        }
+
+        resultsMsg.processResults();
+        List<? extends List<?>> results = resultsMsg.getResultsList();
+        this.updateCounts = new int[results == null ? 0 : results.size()];
+        for (int i = 0; i < updateCounts.length; i++) {
+            updateCounts[i] = ((Number) results.get(i).getFirst()).intValue();
+        }
+        this.currentUpdateCount = -1;
+        this.moreResultsExpected = false;
+        this.currentResultID = ResultsMessage.LEGACY_RESULT_ID;
+        closeRequest(getCurrentRequestID());
+
+        if (logger.isLoggable(Level.FINER)) {
+            logger.finer("Received batch update counts: " + Arrays.toString(updateCounts));
+        }
+
+        if (resultsMsg.getException() != null) {
+            KublingSQLException exception = KublingSQLException.create(resultsMsg.getException());
+            BatchUpdateException batchUpdateException = new BatchUpdateException(
+                    exception.getMessage(), exception.getSQLState(), exception.getErrorCode(),
+                    updateCounts, exception);
+            this.updateCounts = null;
+            throw batchUpdateException;
+        }
+    }
+
+    private void positionOnResult(ResultsMessage resultsMsg) throws SQLException {
+        if (resultsMsg == null) {
+            throw new KublingSQLException("The server returned an incomplete result sequence");
+        }
+        receiveResultHeader(resultsMsg);
+        if (resultsMsg.getException() != null) {
+            throw KublingSQLException.create(resultsMsg.getException());
+        }
+        if (resultsMsg.hasMoreResults()
+                && resultsMsg.getResultId() == ResultsMessage.LEGACY_RESULT_ID) {
+            throw new KublingSQLException(
+                    "The server did not identify a result that requires continuation");
+        }
+
+        resultsMsg.processResults();
+        this.currentUpdateCount = -1;
+        this.resultSet = null;
+        this.moreResultsExpected = resultsMsg.hasMoreResults();
+        this.currentResultID = resultsMsg.getResultId();
+
+        if (resultsMsg.isUpdateResult()) {
+            if (resultsMsg.getUpdateCount() != -1) {
+                this.currentUpdateCount = resultsMsg.getUpdateCount();
+                if (resultsMsg.getColumnNames() != null
+                        && resultsMsg.getColumnNames().length > 0
+                        && resultsMsg.getResultsList() != null) {
+                    this.generatedKeysResultSet = createGeneratedKeysResultSet(resultsMsg);
+                }
+            } else {
+                this.currentUpdateCount = extractUpdateCount(resultsMsg.getResultsList());
+            }
+            if (!moreResultsExpected && !hasOpenResults(getCurrentRequestID())) {
+                closeRequest(getCurrentRequestID());
+            }
+            return;
+        }
+
+        createResultSet(resultsMsg);
+    }
+
+    private void receiveResultHeader(ResultsMessage resultsMsg) {
+        List<Throwable> resultsWarnings = resultsMsg.getWarnings();
+        if (resultsWarnings != null) {
+            accumulateWarnings(resultsWarnings);
+        }
+        setAnalysisInfo(resultsMsg);
+    }
+
+    private int extractUpdateCount(List<? extends List<?>> results) throws SQLException {
+        if (results == null || results.isEmpty()) {
+            // Preserve the legacy behavior of an empty update result.
+            return 0;
+        }
+        List<?> firstRow = results.getFirst();
+        if (firstRow == null || firstRow.isEmpty() || !(firstRow.getFirst() instanceof Number count)) {
+            throw new KublingSQLException("The server returned an invalid update count result");
+        }
+        return count.intValue();
     }
 
     protected RequestMessage createRequestMessage(String[] commands,
@@ -833,6 +1014,7 @@ public class StatementImpl extends WrapperImpl implements KublingStatement {
         reqMessage.setCommands(commands);
         reqMessage.setBatchedUpdate(isBatchedCommand);
         reqMessage.setResultsMode(resultsMode);
+        reqMessage.setSupportsMultipleResults(resultsMode == RequestMessage.ResultsMode.EITHER);
         return reqMessage;
     }
 
@@ -856,17 +1038,79 @@ public class StatementImpl extends WrapperImpl implements KublingStatement {
         return getMoreResults(Statement.CLOSE_CURRENT_RESULT);
     }
 
-    public boolean getMoreResults(int current) throws SQLException {
+    public synchronized boolean getMoreResults(int current) throws SQLException {
         checkStatement();
 
-        if ((current == CLOSE_ALL_RESULTS || current == CLOSE_CURRENT_RESULT) && resultSet != null) {
-            resultSet.close();
-            resultSet = null;
+        if (current != CLOSE_CURRENT_RESULT
+                && current != KEEP_CURRENT_RESULT
+                && current != CLOSE_ALL_RESULTS) {
+            throw new KublingSQLException("Invalid getMoreResults mode: " + current);
         }
 
-        // indicate that there are no more results
-        this.updateCounts = null;
-        return false;
+        ResultSetImpl previousResultSet = resultSet;
+        if (previousResultSet != null) {
+            if (current == KEEP_CURRENT_RESULT) {
+                if (!previousResultSet.isClosed()) {
+                    keptResultSets.add(previousResultSet);
+                }
+            } else {
+                previousResultSet.close();
+            }
+            resultSet = null;
+        }
+        if (current == CLOSE_ALL_RESULTS) {
+            for (ResultSetImpl keptResultSet : new ArrayList<>(keptResultSets)) {
+                keptResultSet.close();
+            }
+            keptResultSets.clear();
+        }
+
+        if (generatedKeysResultSet != null) {
+            generatedKeysResultSet.close();
+            generatedKeysResultSet = null;
+        }
+        currentUpdateCount = -1;
+        if (!moreResultsExpected) {
+            currentResultID = ResultsMessage.LEGACY_RESULT_ID;
+            return false;
+        }
+
+        long previousResultID = currentResultID;
+        try {
+            ResultsMessage nextResult = requestNextResult(previousResultID);
+            positionOnResult(nextResult);
+            return hasResultSet();
+        } catch (SQLException e) {
+            moreResultsExpected = false;
+            currentResultID = ResultsMessage.LEGACY_RESULT_ID;
+            if (!hasOpenResults(getCurrentRequestID())) {
+                try {
+                    closeRequest(getCurrentRequestID());
+                } catch (SQLException closeException) {
+                    e.addSuppressed(closeException);
+                }
+            }
+            throw e;
+        }
+    }
+
+    private ResultsMessage requestNextResult(long resultID) throws SQLException {
+        try {
+            ResultsFuture<ResultsMessage> next =
+                    getDQP().processNextResultRequest(getCurrentRequestID(), resultID);
+            return next.get(queryTimeoutMS == 0 ? Integer.MAX_VALUE : queryTimeoutMS,
+                    TimeUnit.MILLISECONDS);
+        } catch (KublingProcessingException e) {
+            throw KublingSQLException.create(e);
+        } catch (ExecutionException e) {
+            throw KublingSQLException.create(e.getCause() == null ? e : e.getCause());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw KublingSQLException.create(e);
+        } catch (TimeoutException e) {
+            timeoutOccurred();
+            throw KublingSQLException.create(e);
+        }
     }
 
     public int getQueryTimeout() throws SQLException {
@@ -894,13 +1138,7 @@ public class StatementImpl extends WrapperImpl implements KublingStatement {
 
     public int getUpdateCount() throws SQLException {
         checkStatement();
-        if (this.updateCounts == null) {
-            return -1;
-        }
-        if (this.updateCounts.length == 0) {
-            return 0;
-        }
-        return this.updateCounts[0];
+        return currentUpdateCount;
     }
 
     protected void accumulateWarnings(List<Throwable> serverWarnings) {
@@ -1022,10 +1260,10 @@ public class StatementImpl extends WrapperImpl implements KublingStatement {
             commandStatus = State.TIMED_OUT;
             queryTimeoutMS = NO_TIMEOUT;
             setTimeoutFromProperties();
+            moreResultsExpected = false;
+            closeExecutionResults();
             currentRequestID = -1;
-            if (this.resultSet != null) {
-                this.resultSet.close();
-            }
+            requestClosed = true;
         } catch (SQLException se) {
             logger.log(Level.FINE, JDBCPlugin.Util.getString("MMStatement.Error_timing_out."), se);
         }
@@ -1137,10 +1375,7 @@ public class StatementImpl extends WrapperImpl implements KublingStatement {
         executeSql(new String[]{sql}, false,
                 RequestMessage.ResultsMode.UPDATECOUNT, true, null,
                 autoGeneratedKeys == Statement.RETURN_GENERATED_KEYS);
-        if (this.updateCounts == null) {
-            return 0;
-        }
-        return this.updateCounts[0];
+        return currentUpdateCount < 0 ? 0 : currentUpdateCount;
     }
 
     public int executeUpdate(String sql, int[] columnIndexes)
@@ -1154,10 +1389,12 @@ public class StatementImpl extends WrapperImpl implements KublingStatement {
     }
 
     public ResultSet getGeneratedKeys() throws SQLException {
-        if (this.updateCounts != null && this.resultSet != null) {
-            return this.resultSet;
+        checkStatement();
+        if (generatedKeysResultSet != null) {
+            return generatedKeysResultSet;
         }
-        return createResultSet(Collections.emptyList(), new Map[0]);
+        generatedKeysResultSet = createDetachedResultSet(Collections.emptyList(), new Map[0]);
+        return generatedKeysResultSet;
     }
 
     public int getResultSetHoldability() throws SQLException {
@@ -1207,9 +1444,20 @@ public class StatementImpl extends WrapperImpl implements KublingStatement {
             rsmd.getScale(1); //force the load of the metadata
         }
         ResultsMessage resultsMsg = createDummyResultsMessage(null, null, records);
-        resultSet = new ResultSetImpl(resultsMsg, this, rsmd, 0);
-        resultSet.setMaxFieldSize(this.maxFieldSize);
+        currentUpdateCount = -1;
+        moreResultsExpected = false;
+        currentResultID = ResultsMessage.LEGACY_RESULT_ID;
+        resultSet = newResultSet(resultsMsg, rsmd, 0, false);
         return resultSet;
+    }
+
+    private ResultSetImpl createDetachedResultSet(List records, Map[] columnMetadata) throws SQLException {
+        ResultSetMetaData metadata = createResultSetMetaData(columnMetadata);
+        if (metadata.getColumnCount() > 0) {
+            metadata.getScale(1);
+        }
+        ResultsMessage resultsMsg = createDummyResultsMessage(null, null, records);
+        return newResultSet(resultsMsg, metadata, 0, false);
     }
 
     static ResultsMessage createDummyResultsMessage(String[] columnNames, String[] dataTypes, List records) {

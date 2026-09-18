@@ -43,6 +43,56 @@ public interface DQP {
     ResultsFuture<ResultsMessage> processCursorRequest(long reqID, int batchFirst, int fetchSize)
             throws KublingProcessingException;
 
+    /**
+     * Request a page from a particular result in a heterogeneous result
+     * sequence. Implementations that produce multiple results must override
+     * this method so that retained result sets remain independently readable.
+     *
+     * @param reqID      request identifier
+     * @param resultID   server-defined result identifier
+     * @param batchFirst first row to fetch
+     * @param fetchSize  maximum number of rows to fetch
+     * @return the requested result page
+     * @throws KublingProcessingException if the server does not support
+     *                                    multiple result cursors or the request cannot be processed
+     */
+    default ResultsFuture<ResultsMessage> processCursorRequest(long reqID, long resultID,
+                                                               int batchFirst, int fetchSize)
+            throws KublingProcessingException {
+        throw new KublingProcessingException("Multiple result cursors are not supported by this server");
+    }
+
+    /**
+     * Advance a request to the result following {@code resultID}, without
+     * re-executing the command.
+     *
+     * @param reqID    request identifier
+     * @param resultID identifier of the current result
+     * @return the next result
+     * @throws KublingProcessingException if the server does not support
+     *                                    multiple results or the request cannot be processed
+     */
+    default ResultsFuture<ResultsMessage> processNextResultRequest(long reqID, long resultID)
+            throws KublingProcessingException {
+        throw new KublingProcessingException("Multiple results are not supported by this server");
+    }
+
+    /**
+     * Release the server resources for one result without closing its request
+     * or any other retained result.
+     *
+     * @param reqID    request identifier
+     * @param resultID server-defined result identifier
+     * @return completion of the close operation
+     * @throws KublingProcessingException if the server does not support
+     *                                    independently managed results
+     * @throws KublingComponentException  if the close operation fails
+     */
+    default ResultsFuture<?> closeResultRequest(long reqID, long resultID)
+            throws KublingProcessingException, KublingComponentException {
+        throw new KublingProcessingException("Independent result closing is not supported by this server");
+    }
+
     ResultsFuture<?> closeRequest(long requestID) throws KublingProcessingException, KublingComponentException;
 
     boolean cancelRequest(long requestID) throws KublingProcessingException, KublingComponentException;

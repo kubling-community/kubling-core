@@ -47,6 +47,14 @@ public class ResultsMessage implements Externalizable {
     @Serial
     private static final long serialVersionUID = 3546924172976187793L;
 
+    /**
+     * Identifies a result produced by a server that does not support the
+     * multiple-results protocol extension.
+     */
+    public static final long LEGACY_RESULT_ID = -1;
+
+    private static final byte MULTIPLE_RESULTS_VERSION = 1;
+
     private List<? extends List<?>> results;
     private String[] columnNames;
     private String[] dataTypes;
@@ -102,6 +110,17 @@ public class ResultsMessage implements Externalizable {
 
     private boolean isUpdateResult;
     private int updateCount = -1;
+
+    /**
+     * Server-defined identifier used to page and advance this result without
+     * re-executing its command.
+     */
+    private long resultId = LEGACY_RESULT_ID;
+
+    /**
+     * Indicates that the request has another heterogeneous JDBC result.
+     */
+    private boolean hasMoreResults;
 
     private boolean delayDeserialization;
     byte[] resultBytes;
@@ -267,6 +286,15 @@ public class ResultsMessage implements Externalizable {
                 // Ignored
             }
         }
+        try {
+            byte version = in.readByte();
+            if (version == MULTIPLE_RESULTS_VERSION) {
+                resultId = in.readLong();
+                hasMoreResults = in.readBoolean();
+            }
+        } catch (OptionalDataException | EOFException e) {
+            // Multiple-result metadata was added after the original wire format.
+        }
     }
 
     public void writeExternal(ObjectOutput out) throws IOException {
@@ -316,6 +344,9 @@ public class ResultsMessage implements Externalizable {
         if (isUpdateResult) {
             out.writeInt(updateCount);
         }
+        out.writeByte(MULTIPLE_RESULTS_VERSION);
+        out.writeLong(resultId);
+        out.writeBoolean(hasMoreResults);
     }
 
     /**
@@ -388,8 +419,44 @@ public class ResultsMessage implements Externalizable {
         return updateCount;
     }
 
+    /**
+     * Get the server-defined identifier for this result.
+     *
+     * @return the identifier, or {@link #LEGACY_RESULT_ID} for a result from a
+     * server that does not implement the multiple-results extension
+     */
+    public long getResultId() {
+        return resultId;
+    }
+
+    /**
+     * Set the server-defined identifier for this result.
+     *
+     * @param resultId the identifier used by result continuation requests
+     */
+    public void setResultId(long resultId) {
+        this.resultId = resultId;
+    }
+
+    /**
+     * Determine whether this request has another JDBC result after this one.
+     *
+     * @return {@code true} if a subsequent result can be requested
+     */
+    public boolean hasMoreResults() {
+        return hasMoreResults;
+    }
+
+    /**
+     * Set whether this request has another JDBC result after this one.
+     *
+     * @param hasMoreResults {@code true} when a subsequent result exists
+     */
+    public void setHasMoreResults(boolean hasMoreResults) {
+        this.hasMoreResults = hasMoreResults;
+    }
+
     public void setDelayDeserialization(boolean delayDeserialization) {
         this.delayDeserialization = delayDeserialization;
     }
 }
-

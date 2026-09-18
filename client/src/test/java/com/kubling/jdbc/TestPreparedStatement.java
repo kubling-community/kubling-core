@@ -23,11 +23,13 @@
 package com.kubling.jdbc;
 
 import com.kubling.client.DQP;
+import com.kubling.client.ParameterType;
 import com.kubling.client.RequestMessage;
 import com.kubling.client.ResultsMessage;
 import com.kubling.client.security.LogonResult;
 import com.kubling.client.util.ResultsFuture;
 import com.kubling.core.KublingException;
+import com.kubling.core.types.DataTypeManager;
 import com.kubling.net.ServerConnection;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
@@ -273,6 +275,118 @@ public class TestPreparedStatement {
 
         // Check to see if our statement contains our expected parameter value list
         assertEquals(expectedParameterValues, statement.getParameterValuesList());
+    }
+
+    @Test
+    public void testTypedNullWithoutSqlContext() throws Exception {
+        PreparedStatementImpl statement = getMMPreparedStatement("SELECT ?");
+
+        statement.setNull(1, Types.INTEGER);
+
+        RequestMessage request = statement.createRequestMessage(
+                new String[]{"SELECT ?"}, false, RequestMessage.ResultsMode.EITHER);
+        assertEquals(Collections.singletonList(null), request.getParameterValues());
+        assertEquals(List.of(new ParameterType(Types.INTEGER,
+                DataTypeManager.DefaultDataTypes.INTEGER)), request.getParameterTypes());
+    }
+
+    @Test
+    public void testSetObjectTypedAndUntypedNull() throws Exception {
+        PreparedStatementImpl statement = getMMPreparedStatement("SELECT ?");
+
+        statement.setObject(1, null, Types.INTEGER);
+        assertEquals(List.of(new ParameterType(Types.INTEGER,
+                DataTypeManager.DefaultDataTypes.INTEGER)), statement.getParameterTypes());
+
+        statement.setObject(1, null, Types.INTEGER, 0);
+        assertEquals(List.of(new ParameterType(Types.INTEGER,
+                DataTypeManager.DefaultDataTypes.INTEGER)), statement.getParameterTypes());
+
+        statement.setObject(1, null, JDBCType.INTEGER);
+        assertEquals(List.of(new ParameterType(Types.INTEGER,
+                DataTypeManager.DefaultDataTypes.INTEGER)), statement.getParameterTypes());
+
+        statement.setObject(1, null, new SQLType() {
+            @Override
+            public String getName() {
+                return DataTypeManager.DefaultDataTypes.GEOGRAPHY;
+            }
+
+            @Override
+            public String getVendor() {
+                return "Kubling";
+            }
+
+            @Override
+            public Integer getVendorTypeNumber() {
+                return Types.OTHER;
+            }
+        });
+        assertEquals(List.of(new ParameterType(Types.OTHER,
+                DataTypeManager.DefaultDataTypes.GEOGRAPHY)), statement.getParameterTypes());
+
+        statement.setObject(1, null);
+        RequestMessage request = statement.createRequestMessage(
+                new String[]{"SELECT ?"}, false, RequestMessage.ResultsMode.EITHER);
+        assertEquals(Collections.singletonList(null), request.getParameterValues());
+        assertTrue(request.getParameterTypes().isEmpty());
+    }
+
+    @Test
+    public void testTypedNullBatchMetadataIsIndependent() throws Exception {
+        PreparedStatementImpl statement = getMMPreparedStatement("SELECT ?, ?, ?");
+
+        statement.setNull(1, Types.INTEGER);
+        statement.setNull(2, Types.ARRAY, "INTEGER[]");
+        statement.setNull(3, Types.OTHER, "geography");
+        statement.addBatch();
+
+        statement.setNull(1, Types.VARCHAR);
+        statement.setObject(2, null);
+        statement.setNull(3, Types.OTHER, "geometry");
+        statement.addBatch();
+
+        RequestMessage request = statement.createRequestMessage(
+                new String[]{"SELECT ?, ?, ?"}, true, RequestMessage.ResultsMode.EITHER);
+        assertEquals(2, request.getParameterValues().size());
+        assertEquals(List.of(
+                        new ParameterType(Types.INTEGER, DataTypeManager.DefaultDataTypes.INTEGER),
+                        new ParameterType(Types.ARRAY, "integer[]"),
+                        new ParameterType(Types.OTHER, DataTypeManager.DefaultDataTypes.GEOGRAPHY)),
+                request.getBatchedParameterTypes().get(0));
+        assertEquals(Arrays.asList(
+                        new ParameterType(Types.VARCHAR, DataTypeManager.DefaultDataTypes.STRING),
+                        null,
+                        new ParameterType(Types.OTHER, DataTypeManager.DefaultDataTypes.GEOMETRY)),
+                request.getBatchedParameterTypes().get(1));
+    }
+
+    @Test
+    public void testTypedNullValidation() throws Exception {
+        PreparedStatementImpl statement = getMMPreparedStatement("SELECT ?");
+
+        assertThrows(SQLException.class, () -> statement.setNull(1, Integer.MIN_VALUE));
+        assertThrows(SQLException.class, () -> statement.setNull(1, Types.OTHER));
+        assertThrows(SQLException.class, () -> statement.setNull(1, Types.OTHER, "not-a-type"));
+        assertThrows(SQLException.class, () -> statement.setNull(1, Types.ARRAY, "integer"));
+        assertThrows(SQLException.class, () -> statement.setNull(1, Types.INTEGER, "geography"));
+        assertThrows(SQLException.class, () -> statement.setObject(1, null, new SQLType() {
+            @Override
+            public String getName() {
+                return "invalid";
+            }
+
+            @Override
+            public String getVendor() {
+                return "test";
+            }
+
+            @Override
+            public Integer getVendorTypeNumber() {
+                return null;
+            }
+        }));
+        assertTrue(statement.getParameterValues().isEmpty());
     }
 
     /**
