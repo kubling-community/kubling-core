@@ -484,20 +484,26 @@ public class PreparedStatementImpl extends StatementImpl implements KublingPrepa
     }
 
     void setObject(Object parameterIndex, Object value, int targetJdbcType, int scale) throws SQLException {
+        setObject(parameterIndex, value, targetJdbcType, scale,
+                value == null ? null : getCanonicalTypeName(targetJdbcType));
+    }
 
+    private void setObject(Object parameterIndex, Object value, int targetJdbcType,
+                           int scale, String typeName) throws SQLException {
         if (value == null) {
-            setTypedNull(parameterIndex, targetJdbcType, null);
+            setTypedNull(parameterIndex, targetJdbcType, typeName);
             return;
         }
 
         if (targetJdbcType != Types.DECIMAL || targetJdbcType != Types.NUMERIC) {
-            setObject(parameterIndex, value, targetJdbcType);
+            setTypedObject(parameterIndex, value, targetJdbcType, typeName);
             // Decimal and NUMERIC types correspond to java.math.BigDecimal
         } else {
             // transform the object to a BigDecimal
             BigDecimal bigDecimalObject = DataTypeTransformer.getBigDecimal(value);
             // set scale on the BigDecimal
-            setObject(parameterIndex, bigDecimalObject.setScale(scale));
+            setParameterValue(parameterIndex, bigDecimalObject.setScale(scale),
+                    resolveParameterType(targetJdbcType, typeName));
         }
     }
 
@@ -506,18 +512,25 @@ public class PreparedStatementImpl extends StatementImpl implements KublingPrepa
     }
 
     void setObject(Object parameterIndex, Object value, int targetJdbcType) throws SQLException {
-        Object targetObject = value;
-
         if (value == null) {
             setTypedNull(parameterIndex, targetJdbcType, null);
             return;
         }
 
+        setTypedObject(parameterIndex, value, targetJdbcType,
+                getCanonicalTypeName(targetJdbcType));
+    }
+
+    private void setTypedObject(Object parameterIndex, Object value, int targetJdbcType,
+                                String typeName) throws SQLException {
+        ParameterType parameterType = resolveParameterType(targetJdbcType, typeName);
+
         // get the java class name for the given JDBC type
-        String typeName = JDBCSQLTypeInfo.getTypeName(targetJdbcType);
-        int typeCode = DataTypeManager.getTypeCode(DataTypeManager.getDataTypeClass(typeName));
+        String conversionTypeName = JDBCSQLTypeInfo.getTypeName(targetJdbcType);
+        int typeCode = DataTypeManager.getTypeCode(
+                DataTypeManager.getDataTypeClass(conversionTypeName));
         // transform the value to the target datatype
-        targetObject = switch (typeCode) {
+        Object targetObject = switch (typeCode) {
             case DataTypeManager.DefaultTypeCodes.STRING -> DataTypeTransformer.getString(value);
             case DataTypeManager.DefaultTypeCodes.CHAR -> DataTypeTransformer.getCharacter(value);
             case DataTypeManager.DefaultTypeCodes.INTEGER -> DataTypeTransformer.getInteger(value);
@@ -535,10 +548,10 @@ public class PreparedStatementImpl extends StatementImpl implements KublingPrepa
             case DataTypeManager.DefaultTypeCodes.CLOB -> DataTypeTransformer.getClob(value);
             case DataTypeManager.DefaultTypeCodes.XML -> DataTypeTransformer.getSQLXML(value);
             case DataTypeManager.DefaultTypeCodes.VARBINARY -> DataTypeTransformer.getBytes(value);
-            default -> targetObject;
+            default -> value;
         };
 
-        setObject(parameterIndex, targetObject);
+        setParameterValue(parameterIndex, targetObject, parameterType);
     }
 
     @Override
@@ -554,7 +567,8 @@ public class PreparedStatementImpl extends StatementImpl implements KublingPrepa
             setTypedNull(parameterIndex, jdbcType, getVendorTypeName(targetSqlType));
             return;
         }
-        setObject(parameterIndex, value, jdbcType);
+        setTypedObject(parameterIndex, value, jdbcType,
+                getNonNullTypeName(targetSqlType, jdbcType));
     }
 
     @Override
@@ -570,7 +584,8 @@ public class PreparedStatementImpl extends StatementImpl implements KublingPrepa
             setTypedNull(parameterIndex, jdbcType, getVendorTypeName(targetSqlType));
             return;
         }
-        setObject(parameterIndex, value, jdbcType, scaleOrLength);
+        setObject(parameterIndex, value, jdbcType, scaleOrLength,
+                getNonNullTypeName(targetSqlType, jdbcType));
     }
 
     public void setObject(int parameterIndex, Object value) throws SQLException {
@@ -707,6 +722,11 @@ public class PreparedStatementImpl extends StatementImpl implements KublingPrepa
 
     void setTypedNull(Object parameterIndex, int jdbcType, String typeName)
             throws SQLException {
+        setParameterValue(parameterIndex, null, resolveParameterType(jdbcType, typeName));
+    }
+
+    private ParameterType resolveParameterType(int jdbcType, String typeName)
+            throws SQLException {
         if (!JDBCSQLTypeInfo.isSupportedType(jdbcType) && jdbcType != Types.OTHER) {
             throw new KublingSQLException(JDBCPlugin.Util.getString(
                     "MMPreparedStatement.Unsupported_JDBC_type", jdbcType));
@@ -735,7 +755,7 @@ public class PreparedStatementImpl extends StatementImpl implements KublingPrepa
             logicalTypeName = JDBCSQLTypeInfo.getTypeName(jdbcType);
         }
 
-        setParameterValue(parameterIndex, null, new ParameterType(jdbcType, logicalTypeName));
+        return new ParameterType(jdbcType, logicalTypeName);
     }
 
     private static int getJdbcType(SQLType sqlType) throws SQLException {
@@ -748,6 +768,15 @@ public class PreparedStatementImpl extends StatementImpl implements KublingPrepa
 
     private static String getVendorTypeName(SQLType sqlType) {
         return sqlType instanceof JDBCType ? null : sqlType.getName();
+    }
+
+    private static String getNonNullTypeName(SQLType sqlType, int jdbcType) {
+        String typeName = getVendorTypeName(sqlType);
+        return typeName == null ? getCanonicalTypeName(jdbcType) : typeName;
+    }
+
+    private static String getCanonicalTypeName(int jdbcType) {
+        return jdbcType == Types.ARRAY ? null : JDBCSQLTypeInfo.getTypeName(jdbcType);
     }
 
     public ParameterMetaDataImpl getParameterMetaData() throws SQLException {

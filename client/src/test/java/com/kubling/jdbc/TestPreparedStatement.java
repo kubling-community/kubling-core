@@ -333,6 +333,109 @@ public class TestPreparedStatement {
     }
 
     @Test
+    public void testSetObjectWithJdbcTargetPreservesTypeMetadata() throws Exception {
+        PreparedStatementImpl statement = getMMPreparedStatement("SELECT ?, ?, ?");
+
+        statement.setObject(1, "value", Types.VARCHAR);
+        statement.setObject(2, "42", Types.INTEGER);
+        statement.setObject(3, Integer.valueOf(43), Types.BIGINT);
+
+        RequestMessage request = statement.createRequestMessage(
+                new String[]{"SELECT ?, ?, ?"}, false, RequestMessage.ResultsMode.EITHER);
+        assertEquals(List.of("value", Integer.valueOf(42), Long.valueOf(43)),
+                request.getParameterValues());
+        assertEquals(List.of(
+                        new ParameterType(Types.VARCHAR, DataTypeManager.DefaultDataTypes.STRING),
+                        new ParameterType(Types.INTEGER, DataTypeManager.DefaultDataTypes.INTEGER),
+                        new ParameterType(Types.BIGINT, DataTypeManager.DefaultDataTypes.LONG)),
+                request.getParameterTypes());
+    }
+
+    @Test
+    public void testSetObjectWithSqlTypePreservesLogicalTypeName() throws Exception {
+        PreparedStatementImpl statement = getMMPreparedStatement("SELECT ?, ?, ?, ?, ?");
+        SQLType geometryType = kublingType("GEOMETRY", Types.OTHER);
+        SQLType geographyType = kublingType("geography", Types.OTHER);
+        SQLType jsonType = kublingType("JSON", Types.OTHER);
+        SQLType integerArrayType = kublingType("INTEGER[]", Types.ARRAY);
+        Integer[] arrayValue = {1, 2};
+
+        statement.setObject(1, "7", JDBCType.INTEGER);
+        statement.setObject(2, "POINT (1 2)", geometryType);
+        statement.setObject(3, "POINT (3 4)", geographyType);
+        statement.setObject(4, "{}", jsonType);
+        statement.setObject(5, arrayValue, integerArrayType);
+
+        RequestMessage request = statement.createRequestMessage(
+                new String[]{"SELECT ?, ?, ?, ?, ?"}, false, RequestMessage.ResultsMode.EITHER);
+        assertEquals(Integer.valueOf(7), request.getParameterValues().get(0));
+        assertEquals("POINT (1 2)", request.getParameterValues().get(1));
+        assertEquals("POINT (3 4)", request.getParameterValues().get(2));
+        assertEquals("{}", request.getParameterValues().get(3));
+        assertSame(arrayValue, request.getParameterValues().get(4));
+        assertEquals(List.of(
+                        new ParameterType(Types.INTEGER, DataTypeManager.DefaultDataTypes.INTEGER),
+                        new ParameterType(Types.OTHER, DataTypeManager.DefaultDataTypes.GEOMETRY),
+                        new ParameterType(Types.OTHER, DataTypeManager.DefaultDataTypes.GEOGRAPHY),
+                        new ParameterType(Types.OTHER, DataTypeManager.DefaultDataTypes.JSON),
+                        new ParameterType(Types.ARRAY, "integer[]")),
+                request.getParameterTypes());
+    }
+
+    @Test
+    public void testSetObjectMixedTypedAndUntypedMetadataIsPositional() throws Exception {
+        PreparedStatementImpl statement = getMMPreparedStatement("SELECT ?, ?, ?");
+
+        statement.setObject(1, "11", Types.INTEGER);
+        statement.setObject(2, "typed", Types.VARCHAR);
+        statement.setObject(2, "legacy");
+        statement.setNull(3, Types.VARCHAR);
+
+        RequestMessage request = statement.createRequestMessage(
+                new String[]{"SELECT ?, ?, ?"}, false, RequestMessage.ResultsMode.EITHER);
+        assertEquals(Arrays.asList(Integer.valueOf(11), "legacy", null),
+                request.getParameterValues());
+        assertEquals(Arrays.asList(
+                        new ParameterType(Types.INTEGER, DataTypeManager.DefaultDataTypes.INTEGER),
+                        null,
+                        new ParameterType(Types.VARCHAR, DataTypeManager.DefaultDataTypes.STRING)),
+                request.getParameterTypes());
+    }
+
+    @Test
+    public void testSetObjectTypedBatchMetadataIsIndependent() throws Exception {
+        PreparedStatementImpl statement = getMMPreparedStatement("SELECT ?, ?, ?");
+        SQLType jsonType = kublingType("json", Types.OTHER);
+
+        statement.setObject(1, "1", Types.INTEGER);
+        statement.setObject(2, "legacy");
+        statement.setObject(3, null, jsonType);
+        statement.addBatch();
+
+        statement.setObject(1, Integer.valueOf(2), JDBCType.BIGINT);
+        statement.setObject(2, "{}", jsonType);
+        statement.setObject(3, null);
+        statement.addBatch();
+
+        RequestMessage request = statement.createRequestMessage(
+                new String[]{"SELECT ?, ?, ?"}, true, RequestMessage.ResultsMode.EITHER);
+        assertEquals(Arrays.asList(Integer.valueOf(1), "legacy", null),
+                request.getParameterValues().get(0));
+        assertEquals(Arrays.asList(Long.valueOf(2), "{}", null),
+                request.getParameterValues().get(1));
+        assertEquals(Arrays.asList(
+                        new ParameterType(Types.INTEGER, DataTypeManager.DefaultDataTypes.INTEGER),
+                        null,
+                        new ParameterType(Types.OTHER, DataTypeManager.DefaultDataTypes.JSON)),
+                request.getBatchedParameterTypes().get(0));
+        assertEquals(Arrays.asList(
+                        new ParameterType(Types.BIGINT, DataTypeManager.DefaultDataTypes.LONG),
+                        new ParameterType(Types.OTHER, DataTypeManager.DefaultDataTypes.JSON),
+                        null),
+                request.getBatchedParameterTypes().get(1));
+    }
+
+    @Test
     public void testTypedNullBatchMetadataIsIndependent() throws Exception {
         PreparedStatementImpl statement = getMMPreparedStatement("SELECT ?, ?, ?");
 
@@ -387,6 +490,25 @@ public class TestPreparedStatement {
             }
         }));
         assertTrue(statement.getParameterValues().isEmpty());
+    }
+
+    private static SQLType kublingType(String name, int jdbcType) {
+        return new SQLType() {
+            @Override
+            public String getName() {
+                return name;
+            }
+
+            @Override
+            public String getVendor() {
+                return "Kubling";
+            }
+
+            @Override
+            public Integer getVendorTypeNumber() {
+                return jdbcType;
+            }
+        };
     }
 
     /**
