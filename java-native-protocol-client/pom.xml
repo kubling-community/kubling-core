@@ -10,9 +10,8 @@
 
     <modelVersion>4.0.0</modelVersion>
     <artifactId>kubling-client</artifactId>
-    <name>Client</name>
-    <description>Contains the packages related to communication, administrative api, session and transport level
-        messaging.</description>
+    <name>Java Native Protocol Client</name>
+    <description>Java client for Kubling's native database protocol, including JDBC, XA, session management, and socket transport.</description>
 
     <properties>
         <basepom.check.skip-spotbugs>true</basepom.check.skip-spotbugs>
