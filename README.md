@@ -1,65 +1,34 @@
-# Kubling Core and Client
+# Kubling Core
 
 [![Kubling license](https://img.shields.io/badge/license-Apache%202.0-blue.svg?style=flat-square)](LICENSE)
 
-This repository contains the shared JVM foundation used by the Kubling engine and its Java integrations. It publishes
-the runtime data types, serialization contracts, JDBC client, Hibernate dialect, and Testcontainers integration needed
-to communicate with Kubling.
-
-Several artifacts in this repository cross process boundaries. Changes to public types, serialized classes, JDBC URLs,
-or socket messages must therefore be coordinated with the Kubling server release that adopts them.
+Kubling Core contains the Java types, serialization support, JDBC driver, and integration modules shared by Kubling
+components. Kubling uses gRPC for language-neutral integrations; JVM applications can also use the Java client for
+Kubling's native database protocol, which provides JDBC access.
 
 ## Modules
 
 | Module | Artifact | Purpose |
 | --- | --- | --- |
 | `common-core` | `com.kubling:kubling-common-core` | Shared runtime types, conversions, LOB support, serialization, and core utilities. |
-| `client` | `com.kubling:kubling-client` | JDBC, XA, authentication, socket transport, requests, results, and metadata. |
-| `hibernate-dialect` | `com.kubling:kubling-hibernate-dialect` | Hibernate ORM dialect and automatic dialect resolution. |
+| `java-native-protocol-client` | `com.kubling:kubling-client` | Java implementation of Kubling's native database protocol, including JDBC, XA, authentication, socket transport, requests, results, and metadata. |
+| `hibernate-dialect` | `com.kubling:kubling-hibernate-dialect` | Deprecated in Kubling Core; scheduled to move to a dedicated repository for Kubling development tools for the Java ecosystem. |
 | `test-container` | `com.kubling:kubling-test-container` | Testcontainers integration for Java applications. |
 | `build` | `com.kubling:kubling` | JDBC and source distribution assemblies. |
 
-## Build
+## Building from source
 
-The project includes a Maven Wrapper. Its compatibility target and build JDK are intentionally independent: the
-POM defines the Java release supported by published artifacts, while the release workflow selects the GraalVM JDK
-used to compile and test them.
+Published artifacts target Java 21. Use the included Maven Wrapper to build the project and run its tests:
 
 ```bash
 ./mvnw verify
 ```
 
-Distribution assemblies are enabled explicitly:
+The standalone JDBC driver can be built with:
 
 ```bash
 ./mvnw -Pdriver-release package
 ```
-
-## Publishing
-
-Maven Central releases are published by the `Publish to Maven Central` GitHub Actions workflow:
-
-- Stable versions are published automatically from a final GitHub Release.
-- Release candidates use Maven's `RC` qualifier. They can be published manually from a non-default branch once the
-  workflow exists on the default branch, or by pushing a matching version tag.
-
-The requested version or Git tag must match the Maven project version. Update the project POMs and commit that
-version before starting a publication. Snapshots and manual publications of stable versions are rejected.
-
-The release profile publishes the assembled JDBC driver to Maven Central as the `jdbc` classifier of
-`com.kubling:kubling`. After Central confirms publication, the workflow retrieves that exact artifact and verifies
-the JDBC service entry and driver class. Stable releases receive the JAR, its GPG signature, and a SHA-256 checksum
-as GitHub Release assets. Release candidates preserve the same files as a workflow artifact for 30 days.
-
-Core publications exclude tests tagged `runtime-e2e`, because those tests require a Kubling runtime built against
-the same protocol packages. The consuming engine validates that compatibility before adopting the new core version.
-
-Configure these GitHub Actions secrets before the first publication:
-
-- `MAVEN_CENTRAL_USERNAME`: username generated with a Central Portal user token.
-- `MAVEN_CENTRAL_PASSWORD`: password generated with the same Central Portal user token.
-- `MAVEN_GPG_PRIVATE_KEY`: ASCII-armored private key used to sign the artifacts.
-- `MAVEN_GPG_PASSPHRASE`: passphrase for the private key.
 
 ## Versioning
 

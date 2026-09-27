@@ -7,7 +7,7 @@
     <groupId>com.kubling</groupId>
     <artifactId>kubling-core-parent</artifactId>
     <version>26.2</version>
-    <name>Kubling Core and Client</name>
+    <name>Kubling Core</name>
     <packaging>pom</packaging>
 
     <description>Shared runtime types, protocol contracts, and JVM clients for Kubling</description>
@@ -462,8 +462,9 @@
 
     <modules>
         <module>common-core</module>
-        <module>client</module>
+        <module>java-native-protocol-client</module>
         <module>test-container</module>
+        <!-- Deprecated in Kubling Core; scheduled to move before the final 2026 release to the dedicated Java ecosystem development-tools repository. -->
         <module>hibernate-dialect</module>
     </modules>
 
