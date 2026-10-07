@@ -206,10 +206,9 @@ public class JDBCURL {
             if (this.connectionURL != null) {
                 buf.append('@').append(connectionURL);
             }
-            TreeMap sorted = new TreeMap(properties);
+            TreeMap<Object, Object> sorted = new TreeMap<>(properties);
 
-            for (Object o : sorted.entrySet()) {
-                Map.Entry entry = (Map.Entry) o;
+            for (Map.Entry<Object, Object> entry : sorted.entrySet()) {
                 if (entry.getValue() instanceof String) {
                     // get only the string properties, because a non-string property could not have been set on the url.
                     buf.append(';')

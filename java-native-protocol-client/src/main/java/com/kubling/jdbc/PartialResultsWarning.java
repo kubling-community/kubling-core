@@ -37,7 +37,7 @@ public class PartialResultsWarning extends SQLWarning {
 
     @Serial
     private static final long serialVersionUID = 5301215068719177369L;
-    private Map failures;
+    private Map<String, SQLException> failures;
 
     /**
      * Construct partial results warning.
@@ -84,7 +84,7 @@ public class PartialResultsWarning extends SQLWarning {
      */
     public void addConnectorFailure(String name, SQLException exception) {
         if (this.failures == null) {
-            this.failures = new HashMap();
+            this.failures = new HashMap<>();
         }
         this.failures.put(name, exception);
     }
@@ -94,11 +94,11 @@ public class PartialResultsWarning extends SQLWarning {
      *
      * @return List of connectors that failed - List contains String names
      */
-    public Collection getFailedConnectors() {
+    public Collection<String> getFailedConnectors() {
         if (this.failures != null) {
-            return new HashSet(this.failures.keySet());
+            return new HashSet<>(this.failures.keySet());
         }
-        return Collections.EMPTY_SET;
+        return Collections.emptySet();
     }
 
     /**
@@ -110,7 +110,7 @@ public class PartialResultsWarning extends SQLWarning {
      */
     public SQLException getConnectorException(String connectorName) {
         if (this.failures != null) {
-            return (SQLException) this.failures.get(connectorName);
+            return this.failures.get(connectorName);
         }
         return null;
     }

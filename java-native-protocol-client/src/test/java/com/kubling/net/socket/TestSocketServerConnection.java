@@ -92,6 +92,7 @@ public class TestSocketServerConnection {
         }
 
         @Override
+        @Deprecated
         public ResultsFuture<?> ping(Collection<String> sessions)
                 throws KublingComponentException, CommunicationException {
             return ping();

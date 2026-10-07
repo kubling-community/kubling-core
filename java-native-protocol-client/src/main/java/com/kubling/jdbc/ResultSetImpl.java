@@ -432,7 +432,7 @@ public class ResultSetImpl extends WrapperImpl implements KublingResultSet, Batc
         }
         currentResultMsg.processResults();
         List<?> lastTuple = null;
-        List<List<?>> resultsList = (List<List<?>>) currentResultMsg.getResultsList();
+        List<? extends List<?>> resultsList = currentResultMsg.getResultsList();
         //similar logic to BatchCollector on the server side
         //this is a catch-all in case the server doesn't enforce the max
         //such as currently the case with cached subset results

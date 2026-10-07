@@ -34,6 +34,7 @@ import com.kubling.netty.handler.codec.serialization.CompactObjectInputStream;
 import com.kubling.netty.handler.codec.serialization.CompactObjectOutputStream;
 
 import java.io.*;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -264,9 +265,19 @@ public class ResultsMessage implements Externalizable {
             in.readFully(resultBytes);
         }
 
-        List<ExceptionHolder> holderList = (List<ExceptionHolder>) in.readObject();
-        if (holderList != null) {
-            this.warnings = ExceptionHolder.toThrowables(holderList);
+        Object serializedWarnings = in.readObject();
+        if (serializedWarnings != null) {
+            if (!(serializedWarnings instanceof List<?> serializedHolders)) {
+                throw new StreamCorruptedException("Expected a serialized warning list");
+            }
+            List<ExceptionHolder> holders = new ArrayList<>(serializedHolders.size());
+            for (Object serializedHolder : serializedHolders) {
+                if (!(serializedHolder instanceof ExceptionHolder warningHolder)) {
+                    throw new StreamCorruptedException("Expected a serialized ExceptionHolder");
+                }
+                holders.add(warningHolder);
+            }
+            this.warnings = ExceptionHolder.toThrowables(holders);
         }
 
         firstRow = in.readInt();
