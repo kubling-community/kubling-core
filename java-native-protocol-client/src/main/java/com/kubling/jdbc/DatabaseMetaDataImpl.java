@@ -437,7 +437,7 @@ public class DatabaseMetaDataImpl extends WrapperImpl implements DatabaseMetaDat
         /* **********************************************************************
          * Hardcoding JDBC column names for the columns returned in results object
          * **********************************************************************/
-        Map[] metadataList = new Map[8];
+        Map<?, ?>[] metadataList = new Map<?, ?>[8];
 
         // HardCoding metadata details for SCOPE column
         metadataList[0] = StatementImpl.getColumnMetadata(null, JDBCColumnNames.BEST_ROW.SCOPE,
@@ -487,7 +487,7 @@ public class DatabaseMetaDataImpl extends WrapperImpl implements DatabaseMetaDat
         /* **********************************************************************
          * Hardcoding JDBC column names for the columns returned in results object
          * **********************************************************************/
-        Map[] metadataList = new Map[1];
+        Map<?, ?>[] metadataList = new Map<?, ?>[1];
 
         // HardCoding metadata details for TABLE_CAT column
         metadataList[0] = StatementImpl.getColumnMetadata(null, JDBCColumnNames.CATALOGS.TABLE_CAT,
@@ -521,7 +521,7 @@ public class DatabaseMetaDataImpl extends WrapperImpl implements DatabaseMetaDat
         /* **********************************************************************
          * Hardcoding JDBC column names for the columns returned in results object
          * **********************************************************************/
-        Map[] metadataList = new Map[8];
+        Map<?, ?>[] metadataList = new Map<?, ?>[8];
 
         metadataList[0] = StatementImpl.getColumnMetadata(null, JDBCColumnNames.PRIVILEGES.TABLE_CAT,
                 DataTypeManager.DefaultDataTypes.STRING, ResultsMetadataConstants.NULL_TYPES.NULLABLE, driverConnection);
@@ -1369,7 +1369,7 @@ public class DatabaseMetaDataImpl extends WrapperImpl implements DatabaseMetaDat
         /* **********************************************************************
          * Hardcoding JDBC column names for the columns returned in results object
          * **********************************************************************/
-        Map[] metadataList = new Map[4];
+        Map<?, ?>[] metadataList = new Map<?, ?>[4];
 
         // HardCoding metadata details for TABLE_CAT column
         metadataList[0] = StatementImpl.getColumnMetadata(null, JDBCColumnNames.SUPER_TABLES.TABLE_CAT,
@@ -1408,7 +1408,7 @@ public class DatabaseMetaDataImpl extends WrapperImpl implements DatabaseMetaDat
         /* **********************************************************************
          * Hardcoding JDBC column names for the columns returned in results object
          * **********************************************************************/
-        Map[] metadataList = new Map[6];
+        Map<?, ?>[] metadataList = new Map<?, ?>[6];
 
         // HardCoding metadata details for TYPE_CAT column
         metadataList[0] = StatementImpl.getColumnMetadata(null, JDBCColumnNames.SUPER_TYPES.TYPE_CAT,
@@ -1447,7 +1447,7 @@ public class DatabaseMetaDataImpl extends WrapperImpl implements DatabaseMetaDat
         /* **********************************************************************
          * Hardcoding JDBC column names for the columns returned in results object
          * **********************************************************************/
-        Map[] metadataList = new Map[7];
+        Map<?, ?>[] metadataList = new Map<?, ?>[7];
 
         metadataList[0] = StatementImpl.getColumnMetadata(null, JDBCColumnNames.PRIVILEGES.TABLE_CAT,
                 DataTypeManager.DefaultDataTypes.STRING, ResultsMetadataConstants.NULL_TYPES.NULLABLE, driverConnection);
@@ -1577,7 +1577,7 @@ public class DatabaseMetaDataImpl extends WrapperImpl implements DatabaseMetaDat
          * Hardcoding JDBC column names for the columns returned in results object
          * **********************************************************************/
 
-        Map[] metadataList = new Map[1];
+        Map<?, ?>[] metadataList = new Map<?, ?>[1];
 
         metadataList[0] = StatementImpl.getColumnMetadata(null, JDBCColumnNames.TABLE_TYPES.TABLE_TYPE,
                 DataTypeManager.DefaultDataTypes.STRING, ResultsMetadataConstants.NULL_TYPES.NOT_NULL, driverConnection);
@@ -1678,7 +1678,7 @@ public class DatabaseMetaDataImpl extends WrapperImpl implements DatabaseMetaDat
         records.add(Arrays.asList(
                 createTypeInfoRow("clob", null, null, Boolean.TRUE, Boolean.TRUE, 0)));
 
-        Map[] metadataList = new Map[18];
+        Map<?, ?>[] metadataList = new Map<?, ?>[18];
 
         metadataList[0] = StatementImpl.getColumnMetadata(
                 CoreConstants.SYSTEM_MODEL + "." + DATA_TYPES,
@@ -1940,7 +1940,7 @@ public class DatabaseMetaDataImpl extends WrapperImpl implements DatabaseMetaDat
                 DataTypeManager.DefaultDataTypes.STRING,
                 DataTypeManager.DefaultDataTypes.SHORT
         };
-        return dummyStatement().createResultSet(Collections.EMPTY_LIST, columnNames, dataTypes);
+        return dummyStatement().createResultSet(Collections.emptyList(), columnNames, dataTypes);
     }
 
     private StatementImpl dummyStatement() {
@@ -2296,7 +2296,7 @@ public class DatabaseMetaDataImpl extends WrapperImpl implements DatabaseMetaDat
 
     @Override
     public boolean supportsResultSetHoldability(int holdability) {
-        return false;
+        return holdability == ResultSet.HOLD_CURSORS_OVER_COMMIT;
     }
 
     /**

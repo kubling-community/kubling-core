@@ -47,6 +47,15 @@ public class TestResultSet {
 
     private static final int BATCH_SIZE = 400;
 
+    @Test
+    public void testHoldability() throws SQLException {
+        ResultSetImpl resultSet = helpExecuteQuery();
+
+        assertEquals(ResultSet.HOLD_CURSORS_OVER_COMMIT, resultSet.getHoldability());
+        resultSet.close();
+        assertThrows(SQLException.class, resultSet::getHoldability);
+    }
+
     /**
      * test next() without walking through
      */

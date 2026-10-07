@@ -118,7 +118,7 @@ public class ResultSetImpl extends WrapperImpl implements KublingResultSet, Batc
                     resultsMsg.getDataTypes(), statement,
                     statement.getCurrentRequestID());
             rmetadata = new ResultSetMetaDataImpl(provider,
-                    this.statement.getExecutionProperty(ExecutionProperties.JDBC4COLUMNNAMEANDLABELSEMANTICS));
+                    this.statement.getExecutionPropertyValue(ExecutionProperties.JDBC4COLUMNNAMEANDLABELSEMANTICS));
         } else {
             rmetadata = metadata;
         }
@@ -518,6 +518,8 @@ public class ResultSetImpl extends WrapperImpl implements KublingResultSet, Batc
         return getBigDecimal(findColumn(columnName));
     }
 
+    @Override
+    @Deprecated
     public BigDecimal getBigDecimal(int columnIndex, int scale)
             throws SQLException {
 
@@ -534,6 +536,8 @@ public class ResultSetImpl extends WrapperImpl implements KublingResultSet, Batc
         return bigDecimalObject.setScale(scale);
     }
 
+    @Override
+    @Deprecated
     public BigDecimal getBigDecimal(String columnName, int scale)
             throws SQLException {
         // find the columnIndex for the given column name.
@@ -1029,7 +1033,8 @@ public class ResultSetImpl extends WrapperImpl implements KublingResultSet, Batc
     }
 
     public int getHoldability() throws SQLException {
-        throw SqlUtil.createFeatureNotSupportedException();
+        checkClosed();
+        return ResultSet.HOLD_CURSORS_OVER_COMMIT;
     }
 
     public Reader getNCharacterStream(int columnIndex) throws SQLException {
@@ -1086,10 +1091,14 @@ public class ResultSetImpl extends WrapperImpl implements KublingResultSet, Batc
         return getSQLXML(findColumn(columnLabel));
     }
 
+    @Override
+    @Deprecated
     public InputStream getUnicodeStream(int columnIndex) throws SQLException {
         throw SqlUtil.createFeatureNotSupportedException();
     }
 
+    @Override
+    @Deprecated
     public InputStream getUnicodeStream(String columnLabel) throws SQLException {
         throw SqlUtil.createFeatureNotSupportedException();
     }

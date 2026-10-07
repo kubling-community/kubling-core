@@ -25,7 +25,11 @@ package com.kubling.jdbc;
 import com.kubling.client.DQP;
 import com.kubling.client.RequestMessage;
 import com.kubling.client.ResultsMessage;
+import com.kubling.client.SourceWarning;
+import com.kubling.client.util.ExceptionUtil;
 import com.kubling.client.util.ResultsFuture;
+import com.kubling.core.ExecutionDiagnosticException;
+import com.kubling.core.util.UnitTestUtil;
 import com.kubling.net.ServerConnection;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -87,6 +91,116 @@ public class TestStatement {
         SQLWarning warning = statement.getWarnings();
         assertNotNull(warning);
         assertNull(warning.getNextWarning());
+    }
+
+    @Test
+    public void testStructuredWarningsThroughStatement() throws Exception {
+        ConnectionImpl conn = Mockito.mock(ConnectionImpl.class);
+        Mockito.when(conn.getConnectionProps()).thenReturn(new Properties());
+        DQP dqp = Mockito.mock(DQP.class);
+        ResultsFuture<ResultsMessage> results = new ResultsFuture<>();
+        Mockito.when(dqp.executeRequest(Mockito.anyLong(), Mockito.any())).thenReturn(results);
+        Mockito.when(conn.getDQP()).thenReturn(dqp);
+
+        ResultsMessage message = new ResultsMessage();
+        message.setResults(new List<?>[]{List.of(1)});
+        message.setColumnNames(new String[]{"expr1"});
+        message.setDataTypes(new String[]{"integer"});
+        message.setFirstRow(1);
+        message.setLastRow(1);
+        message.setFinalRow(1);
+        message.setWarnings(List.<Throwable>of(
+                new SourceWarning("model-1", "connector-1",
+                        new ExecutionDiagnosticException(
+                                "SLOW_TARGET", "target was slow", "target-1", false), false),
+                new SourceWarning("model-2", "connector-2",
+                        new ExecutionDiagnosticException(
+                                "SOURCE_UNAVAILABLE", "target failed", "target-2", true), true),
+                new SourceWarning("model-3", "connector-3", new Exception("legacy source warning"), false),
+                new Exception("plain legacy warning")));
+        results.getResultsReceiver().receiveResults(UnitTestUtil.helpSerialize(message));
+
+        StatementImpl statement = new StatementImpl(conn, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY) {
+            @Override
+            protected TimeZone getServerTimeZone() {
+                return null;
+            }
+        };
+        assertTrue(statement.execute("select 1"));
+
+        KublingSQLWarning general = assertInstanceOf(KublingSQLWarning.class, statement.getWarnings());
+        assertEquals("connector-1", general.getSourceName());
+        assertEquals("model-1", general.getModelName());
+        assertNull(general.getSQLState());
+        assertEquals(0, general.getErrorCode());
+        ExecutionDiagnosticException generalCause =
+                assertInstanceOf(ExecutionDiagnosticException.class, general.getCause());
+        assertEquals("SLOW_TARGET", generalCause.getCode());
+        assertEquals("target was slow", generalCause.getMessage());
+        assertEquals("target-1", generalCause.getTarget());
+        assertFalse(generalCause.isRetryable());
+
+        PartialResultsWarning partial =
+                assertInstanceOf(PartialResultsWarning.class, general.getNextWarning());
+        assertNull(partial.getSQLState());
+        assertEquals(0, partial.getErrorCode());
+        assertEquals(1, partial.getFailedConnectors().size());
+        SQLException connectorFailure = partial.getConnectorException("connector-2");
+        assertNotNull(connectorFailure);
+        assertNotEquals("SOURCE_UNAVAILABLE", connectorFailure.getSQLState());
+        assertEquals(0, connectorFailure.getErrorCode());
+        SourceWarning partialSource = assertInstanceOf(SourceWarning.class, connectorFailure.getCause());
+        assertEquals("model-2", partialSource.getModelName());
+        assertEquals("connector-2", partialSource.getConnectorBindingName());
+        assertTrue(partialSource.isPartialResultsError());
+        ExecutionDiagnosticException partialCause =
+                assertInstanceOf(ExecutionDiagnosticException.class, partialSource.getCause());
+        assertEquals("SOURCE_UNAVAILABLE", partialCause.getCode());
+        assertEquals("target failed", partialCause.getMessage());
+        assertEquals("target-2", partialCause.getTarget());
+        assertTrue(partialCause.isRetryable());
+
+        KublingSQLWarning legacySource =
+                assertInstanceOf(KublingSQLWarning.class, partial.getNextWarning());
+        assertEquals("connector-3", legacySource.getSourceName());
+        assertEquals("model-3", legacySource.getModelName());
+        assertEquals("legacy source warning", legacySource.getCause().getMessage());
+
+        KublingSQLWarning plain =
+                assertInstanceOf(KublingSQLWarning.class, legacySource.getNextWarning());
+        assertEquals("plain legacy warning", plain.getCause().getMessage());
+        assertNull(plain.getNextWarning());
+    }
+
+    @Test
+    public void testSanitizedWarningRolesAndLegacySQLState() {
+        SourceWarning ordinary = new SourceWarning(
+                "model-3", "connector-3", new Exception("internal detail"), false);
+        SourceWarning sanitizedOrdinary =
+                assertInstanceOf(SourceWarning.class, ExceptionUtil.sanitize(ordinary, false));
+        KublingSQLWarning general =
+                assertInstanceOf(KublingSQLWarning.class, WarningUtil.createWarning(sanitizedOrdinary));
+        assertEquals("model-3", general.getModelName());
+        assertEquals("connector-3", general.getSourceName());
+        assertNull(general.getSQLState());
+
+        SourceWarning partial = new SourceWarning(
+                "model-2", "connector-2",
+                new ExecutionDiagnosticException(
+                        "SOURCE_UNAVAILABLE", "client-safe message", "target-2", true), true);
+        SourceWarning sanitizedPartial =
+                assertInstanceOf(SourceWarning.class, ExceptionUtil.sanitize(partial, false));
+        PartialResultsWarning partialWarning =
+                assertInstanceOf(PartialResultsWarning.class, WarningUtil.createWarning(sanitizedPartial));
+        SourceWarning source = assertInstanceOf(SourceWarning.class,
+                partialWarning.getConnectorException("connector-2").getCause());
+        assertTrue(source.isPartialResultsError());
+        assertEquals("model-2", source.getModelName());
+        ExecutionDiagnosticException diagnostic =
+                assertInstanceOf(ExecutionDiagnosticException.class, source.getCause());
+        assertEquals("SOURCE_UNAVAILABLE", diagnostic.getCode());
+        assertEquals("target-2", diagnostic.getTarget());
+        assertTrue(diagnostic.isRetryable());
     }
 
     @Test
@@ -163,6 +277,7 @@ public class TestStatement {
     }
 
     @Test
+    @SuppressWarnings("deprecation")
     public void testPropertiesOverride() {
         ConnectionImpl conn = Mockito.mock(ConnectionImpl.class);
         Properties p = new Properties();
@@ -182,7 +297,8 @@ public class TestStatement {
         Mockito.when(conn.getExecutionProperties()).thenReturn(p);
         StatementImpl statement = new StatementImpl(conn, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
         assertFalse(statement.execute("start transaction"));
-        Mockito.verify(conn).setAutoCommit(false);
+        Mockito.verify(conn).checkCanStartTransaction();
+        Mockito.verify(conn).startLocalTransaction();
         assertFalse(statement.execute("commit"));
         Mockito.verify(conn).setAutoCommit(true);
         assertFalse(statement.execute("start transaction"));
@@ -216,6 +332,30 @@ public class TestStatement {
         assertTrue(conn.isInLocalTxn());
     }
 
+    @Test
+    public void testStartTransactionStartsImmediatelyAndRejectsNestedStart() throws Exception {
+        ServerConnection serverConnection = Mockito.mock(ServerConnection.class);
+        DQP dqp = Mockito.mock(DQP.class);
+        Mockito.when(serverConnection.getService(DQP.class)).thenReturn(dqp);
+        Mockito.doReturn(ResultsFuture.NULL_FUTURE).when(dqp).begin();
+        Mockito.doReturn(ResultsFuture.NULL_FUTURE).when(dqp).rollback();
+        ConnectionImpl conn = new ConnectionImpl(serverConnection, new Properties(), "x");
+        StatementImpl statement = new StatementImpl(conn, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+
+        assertFalse(statement.execute("start transaction read only"));
+        assertFalse(conn.getAutoCommit());
+        assertTrue(conn.isInLocalTxn());
+        assertTrue(conn.isReadOnly());
+        Mockito.verify(dqp).begin();
+
+        assertThrows(SQLException.class, () -> statement.execute("start transaction read write"));
+        assertTrue(conn.isReadOnly());
+        Mockito.verify(dqp).begin();
+
+        assertFalse(statement.execute("rollback"));
+        assertFalse(conn.isReadOnly());
+    }
+
     @SuppressWarnings("unchecked")
     @Test
     public void testTransactionStatementsAsynch() throws Exception {
@@ -226,7 +366,8 @@ public class TestStatement {
         Mockito.when(conn.getExecutionProperties()).thenReturn(p);
         StatementImpl statement = new StatementImpl(conn, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
         statement.submitExecute("start transaction", null);
-        Mockito.verify(conn).setAutoCommit(false);
+        Mockito.verify(conn).checkCanStartTransaction();
+        Mockito.verify(conn).startLocalTransaction();
         statement.submitExecute("commit", null);
         Mockito.verify(conn).submitSetAutoCommitTrue(true);
         statement.submitExecute("start transaction", null);
@@ -286,7 +427,7 @@ public class TestStatement {
         Mockito.when(conn.getExecutionProperties()).thenReturn(p);
         StatementImpl statement = new StatementImpl(conn, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
         assertEquals(Boolean.FALSE.toString(),
-                statement.getExecutionProperty(ExecutionProperties.JDBC4COLUMNNAMEANDLABELSEMANTICS));
+                statement.getExecutionPropertyValue(ExecutionProperties.JDBC4COLUMNNAMEANDLABELSEMANTICS));
 
     }
 

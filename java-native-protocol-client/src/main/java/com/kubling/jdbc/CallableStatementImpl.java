@@ -74,6 +74,8 @@ public class CallableStatementImpl extends PreparedStatementImpl implements Call
         super.close();
     }
 
+    @Override
+    @Deprecated
     public BigDecimal getBigDecimal(int parameterIndex, int scale) throws SQLException {
         BigDecimal bigDecimalParam = DataTypeTransformer.getBigDecimal(getObject(parameterIndex));
 
