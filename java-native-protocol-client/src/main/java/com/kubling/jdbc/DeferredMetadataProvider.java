@@ -49,18 +49,19 @@ public class DeferredMetadataProvider extends MetadataProvider {
         this.requestID = requestID;
     }
 
-    static Map<Integer, String>[] loadPartialMetadata(String[] columnNames, String[] columnTypes) {
+    static Map<?, ?>[] loadPartialMetadata(String[] columnNames, String[] columnTypes) {
         if (columnNames == null || columnTypes == null || columnNames.length != columnTypes.length) {
             Object[] params = new Object[]{
                     StringUtil.toString(columnNames), StringUtil.toString(columnTypes)
             };
             throw new IllegalArgumentException(JDBCPlugin.Util.getString("DeferredMetadataProvider.Invalid_data", params));
         }
-        Map<Integer, String>[] columnMetadata = new Map[columnNames.length];
+        Map<?, ?>[] columnMetadata = new Map<?, ?>[columnNames.length];
         for (int i = 0; i < columnNames.length; i++) {
-            columnMetadata[i] = new HashMap<>();
-            columnMetadata[i].put(ResultsMetadataConstants.ELEMENT_LABEL, columnNames[i]);
-            columnMetadata[i].put(ResultsMetadataConstants.DATA_TYPE, columnTypes[i]);
+            Map<Integer, String> column = new HashMap<>();
+            column.put(ResultsMetadataConstants.ELEMENT_LABEL, columnNames[i]);
+            column.put(ResultsMetadataConstants.DATA_TYPE, columnTypes[i]);
+            columnMetadata[i] = column;
         }
         return columnMetadata;
     }

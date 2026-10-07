@@ -23,6 +23,7 @@
 package com.kubling.client.util;
 
 import com.kubling.client.SourceWarning;
+import com.kubling.core.ExecutionDiagnosticException;
 import com.kubling.core.KublingException;
 import com.kubling.core.KublingProcessingException;
 import com.kubling.core.KublingRuntimeException;
@@ -35,6 +36,7 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -204,32 +206,73 @@ public class TestExceptionHolder {
         assertInstanceOf(KublingException.class, e);
     }
 
-    // TODO replace the SER file
-    public void testSourceWarning() throws Exception {
-        ClassLoader cl = new URLClassLoader(new URL[]{UnitTestUtil.getTestDataFile("test.jar").toURI().toURL()});
-        ArrayList<String> args = new ArrayList<>();
-        args.add("Unknown Exception");
-        Exception obj = (Exception) ReflectionHelper.create("test.UnknownException", args, cl);
+    @Test
+    public void testSourceWarningWithDiagnosticCause() throws Exception {
+        ExecutionDiagnosticException diagnostic = new ExecutionDiagnosticException(
+                "SOURCE_UNAVAILABLE", "one target is unavailable", "target-1", false);
+        SourceWarning warning = new SourceWarning("model-1", "connector-1", diagnostic, true);
 
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        ObjectOutputStream oos = new ObjectOutputStream(baos);
-        oos.writeObject(new ExceptionHolder(new SourceWarning("x", "y", obj, true)));
-        oos.flush();
-
-        ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(baos.toByteArray()));
-        ExceptionHolder holder = (ExceptionHolder) ois.readObject();
-        SourceWarning sw = (SourceWarning) holder.getException();
-        assertEquals("y", sw.getConnectorBindingName());
-        assertEquals("x", sw.getModelName());
-        assertTrue(sw.isPartialResultsError());
-
-        try {
-            ois = new ObjectInputStream(new FileInputStream(UnitTestUtil.getTestDataFile("old-exceptionholder.ser")));
-            holder = (ExceptionHolder) ois.readObject();
-            assertInstanceOf(KublingException.class, holder.getException());
-        } finally {
-            ois.close();
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (ObjectOutputStream out = new ObjectOutputStream(bytes)) {
+            out.writeObject(new ExceptionHolder(warning));
+        }
+        ExceptionHolder holder;
+        try (ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(bytes.toByteArray()))) {
+            holder = (ExceptionHolder) in.readObject();
         }
 
+        SourceWarning copy = assertInstanceOf(SourceWarning.class, holder.getException());
+        assertEquals("model-1", copy.getModelName());
+        assertEquals("connector-1", copy.getConnectorBindingName());
+        assertTrue(copy.isPartialResultsError());
+        ExecutionDiagnosticException cause =
+                assertInstanceOf(ExecutionDiagnosticException.class, copy.getCause());
+        assertEquals("SOURCE_UNAVAILABLE", cause.getCode());
+        assertEquals("one target is unavailable", cause.getMessage());
+        assertEquals("target-1", cause.getTarget());
+        assertFalse(cause.isRetryable());
+    }
+
+    @Test
+    public void testSourceWarningWithUnknownCause() throws Exception {
+        Exception unknown;
+        try (URLClassLoader classLoader = new URLClassLoader(
+                new URL[]{UnitTestUtil.getTestDataFile("test.jar").toURI().toURL()})) {
+            unknown = (Exception) ReflectionHelper.create(
+                    "test.UnknownException", List.of("Unknown Exception"), classLoader);
+        }
+
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (ObjectOutputStream out = new ObjectOutputStream(bytes)) {
+            out.writeObject(new ExceptionHolder(new SourceWarning("x", "y", unknown, true)));
+        }
+
+        ExceptionHolder holder;
+        try (ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(bytes.toByteArray()))) {
+            holder = (ExceptionHolder) in.readObject();
+        }
+        SourceWarning warning = assertInstanceOf(SourceWarning.class, holder.getException());
+        assertEquals("y", warning.getConnectorBindingName());
+        assertEquals("x", warning.getModelName());
+        assertTrue(warning.isPartialResultsError());
+        KublingRuntimeException cause = assertInstanceOf(KublingRuntimeException.class, warning.getCause());
+        assertEquals("Remote test.UnknownException: Unknown Exception", cause.getMessage());
+    }
+
+    @Test
+    public void testVersion26_2SourceWarningCompatibility() throws Exception {
+        // Written by kubling-client 26.2. Add a new versioned fixture for a future compatibility boundary.
+        ExceptionHolder holder;
+        try (ObjectInputStream in = new ObjectInputStream(
+                new FileInputStream(UnitTestUtil.getTestDataFile("exceptionholder-26.2.ser")))) {
+            holder = (ExceptionHolder) in.readObject();
+        }
+
+        SourceWarning warning = assertInstanceOf(SourceWarning.class, holder.getException());
+        assertEquals("legacy-model-26.2", warning.getModelName());
+        assertEquals("legacy-connector-26.2", warning.getConnectorBindingName());
+        assertTrue(warning.isPartialResultsError());
+        KublingRuntimeException cause = assertInstanceOf(KublingRuntimeException.class, warning.getCause());
+        assertEquals("Remote compat.v26_2.LegacyUnknownException: legacy failure", cause.getMessage());
     }
 }

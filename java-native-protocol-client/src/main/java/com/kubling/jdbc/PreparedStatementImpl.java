@@ -374,7 +374,7 @@ public class PreparedStatementImpl extends StatementImpl implements KublingPrepa
                     return null;
                 }
                 MetadataProvider provider = new MetadataProvider(getMetadataResults().getColumnMetadata());
-                metadata = new ResultSetMetaDataImpl(provider, this.getExecutionProperty(ExecutionProperties.JDBC4COLUMNNAMEANDLABELSEMANTICS));
+                metadata = new ResultSetMetaDataImpl(provider, this.getExecutionPropertyValue(ExecutionProperties.JDBC4COLUMNNAMEANDLABELSEMANTICS));
             }
         }
 
@@ -391,7 +391,7 @@ public class PreparedStatementImpl extends StatementImpl implements KublingPrepa
             } else {
                 try {
                     metadataResults = this.getDQP().getMetadata(this.currentRequestID, prepareSql,
-                            Boolean.parseBoolean(getExecutionProperty(ExecutionProperties.ANSI_QUOTED_IDENTIFIERS)));
+                            Boolean.parseBoolean(getExecutionPropertyValue(ExecutionProperties.ANSI_QUOTED_IDENTIFIERS)));
                 } catch (KublingComponentException | KublingProcessingException e) {
                     throw KublingSQLException.create(e);
                 }
@@ -785,7 +785,7 @@ public class PreparedStatementImpl extends StatementImpl implements KublingPrepa
             this.parameterMetaData = new ParameterMetaDataImpl(
                     new ResultSetMetaDataImpl(
                             new MetadataProvider(getMetadataResults().getParameterMetadata()),
-                            this.getExecutionProperty(ExecutionProperties.JDBC4COLUMNNAMEANDLABELSEMANTICS)));
+                            this.getExecutionPropertyValue(ExecutionProperties.JDBC4COLUMNNAMEANDLABELSEMANTICS)));
         }
         return parameterMetaData;
     }
@@ -937,6 +937,8 @@ public class PreparedStatementImpl extends StatementImpl implements KublingPrepa
         throw SqlUtil.createFeatureNotSupportedException();
     }
 
+    @Override
+    @Deprecated
     public void setUnicodeStream(int parameterIndex, InputStream x, int length)
             throws SQLException {
         throw SqlUtil.createFeatureNotSupportedException();

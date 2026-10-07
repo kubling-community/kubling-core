@@ -37,6 +37,10 @@ public class KublingRuntimeException extends RuntimeException {
     @Serial
     private static final long serialVersionUID = -4035276728007979320L;
 
+    /**
+     * @deprecated This value is unused and retained only for binary compatibility.
+     */
+    @Deprecated(since = "26.3", forRemoval = true)
     public static final String CAUSED_BY_STRING = CorePlugin.Util.getString("RuntimeException.Caused_by");
 
     //############################################################################################################################
@@ -88,8 +92,8 @@ public class KublingRuntimeException extends RuntimeException {
     }
 
     /**
-     * Construct an instance with a linked exception specified.  If the exception is a {@link KublingException} or a
-     * TeoodRuntimeException, then the code will be set to the exception's code.
+     * Construct an instance with a linked exception specified.  If the exception is a {@link KublingException},
+     * then the code will be set to the exception's code.
      *
      * @param e An exception to chain to this exception
      */
@@ -129,7 +133,12 @@ public class KublingRuntimeException extends RuntimeException {
         return this.code;
     }
 
-    private void setCode(String code) {
+    /**
+     * Set the error code.
+     *
+     * @param code the error code
+     */
+    public void setCode(String code) {
         this.code = code;
     }
 

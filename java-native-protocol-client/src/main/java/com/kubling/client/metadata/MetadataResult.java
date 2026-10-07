@@ -54,8 +54,25 @@ public class MetadataResult implements Externalizable {
     @Override
     public void readExternal(ObjectInput in) throws IOException,
             ClassNotFoundException {
-        columnMetadata = ExternalizeUtil.readArray(in, Map.class);
-        parameterMetadata = ExternalizeUtil.readArray(in, Map.class);
+        columnMetadata = readMetadata(in);
+        parameterMetadata = readMetadata(in);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<Integer, Object>[] readMetadata(ObjectInput in)
+            throws IOException, ClassNotFoundException {
+        Map<?, ?>[] metadata = ExternalizeUtil.readArray(in, Map.class);
+        for (Map<?, ?> column : metadata) {
+            if (column == null) {
+                continue;
+            }
+            for (Object key : column.keySet()) {
+                if (key != null && !(key instanceof Integer)) {
+                    throw new StreamCorruptedException("Metadata key is not an integer: " + key.getClass().getName());
+                }
+            }
+        }
+        return (Map<Integer, Object>[]) metadata;
     }
 
     @Override

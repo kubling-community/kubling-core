@@ -803,29 +803,30 @@ public class TestAllResultsImpl {
     }
 
     // /////////////////////Helper Method///////////////////
-    static List<Object>[] exampleResults1(int length) {
+    static List<?>[] exampleResults1(int length) {
         return exampleResults1(length, 1);
     }
 
-    static List<Object>[] exampleResults1(int length, int begin) {
-        List<Object>[] results = new List[length];
+    static List<?>[] exampleResults1(int length, int begin) {
+        List<?>[] results = new List<?>[length];
 
         for (int i = 0; i < results.length; i++) {
-            results[i] = new ArrayList<>(1);
-            results[i].add(begin + i);
+            List<Object> row = new ArrayList<>(1);
+            row.add(begin + i);
+            results[i] = row;
         }
 
         return results;
     }
 
-    private List<Object>[] exampleResults2() {
-        @SuppressWarnings("unchecked")
-        List<Object>[] results = new List[5];
+    private List<?>[] exampleResults2() {
+        List<?>[] results = new List<?>[5];
 
         for (int i = 0; i < results.length; i++) {
-            results[i] = new ArrayList<>(2);
-            results[i].add(i);
-            results[i].add("a" + i);
+            List<Object> row = new ArrayList<>(2);
+            row.add(i);
+            row.add("a" + i);
+            results[i] = row;
         }
 
         return results;
@@ -865,7 +866,7 @@ public class TestAllResultsImpl {
         return exampleMessage(exampleResults1(5), new String[]{"IntNum"}, new String[]{DataTypeManager.DefaultDataTypes.INTEGER});
     }
 
-    private ResultsMessage exampleMessage(List<Object>[] results, String[] columnNames, String[] datatypes) {
+    private ResultsMessage exampleMessage(List<?>[] results, String[] columnNames, String[] datatypes) {
         RequestMessage request = new RequestMessage();
         request.setExecutionId(REQUEST_ID);
         ResultsMessage resultsMsg = new ResultsMessage();
@@ -911,7 +912,7 @@ public class TestAllResultsImpl {
      */
     private ResultsMessage exampleResultsMsg3() {
         return exampleMessage(
-                new List[0],
+                new List<?>[0],
                 new String[]{"IntNum", "StringNum"},
                 new String[]{DataTypeManager.DefaultDataTypes.INTEGER,
                         DataTypeManager.DefaultDataTypes.STRING}
@@ -952,7 +953,7 @@ public class TestAllResultsImpl {
         RequestMessage request = new RequestMessage();
         request.setExecutionId(REQUEST_ID);
         ResultsMessage resultsMsg = new ResultsMessage();
-        resultsMsg.setResults(new List[]{List.of(new Timestamp(0))});
+        resultsMsg.setResults(new List<?>[]{List.of(new Timestamp(0))});
         resultsMsg.setColumnNames(new String[]{"TS"});
         resultsMsg.setDataTypes(new String[]{DataTypeManager.DefaultDataTypes.TIMESTAMP});
         resultsMsg.setFirstRow(1);
@@ -972,7 +973,7 @@ public class TestAllResultsImpl {
     @Test
     public void testWasNull() throws SQLException {
         ResultsMessage message = exampleMessage(
-                new List[]{Collections.singletonList((String) null), List.of("1")},
+                new List<?>[]{Collections.singletonList((String) null), List.of("1")},
                 new String[]{"string"},
                 new String[]{DataTypeManager.DefaultDataTypes.STRING}
         );
@@ -1001,7 +1002,7 @@ public class TestAllResultsImpl {
     @Test
     public void testGetters() throws SQLException {
         TimeZone.setDefault(TimeZone.getTimeZone("GMT-05:00"));
-        ResultsMessage message = exampleMessage(new List[]{Arrays.asList(1, TimestampUtil.createTime(0, 0, 0), TimestampUtil.createDate(1, 1, 1), TimestampUtil.createTimestamp(1, 1, 1, 1, 1, 1, 1), "<root/>")},
+        ResultsMessage message = exampleMessage(new List<?>[]{Arrays.asList(1, TimestampUtil.createTime(0, 0, 0), TimestampUtil.createDate(1, 1, 1), TimestampUtil.createTimestamp(1, 1, 1, 1, 1, 1, 1), "<root/>")},
                 new String[]{"int", "time", "date", "timestamp", "sqlxml"},
                 new String[]{DataTypeManager.DefaultDataTypes.INTEGER, DataTypeManager.DefaultDataTypes.TIME, DataTypeManager.DefaultDataTypes.DATE, DataTypeManager.DefaultDataTypes.TIMESTAMP, DataTypeManager.DefaultDataTypes.STRING});
         TimestampWithTimezone.resetCalendar(TimeZone.getTimeZone("GMT-06:00"));

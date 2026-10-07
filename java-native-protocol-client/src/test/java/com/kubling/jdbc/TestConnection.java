@@ -35,9 +35,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.mockito.stubbing.Answer;
 
-import java.sql.Array;
-import java.sql.DatabaseMetaData;
-import java.sql.SQLException;
+import java.sql.*;
 import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -59,7 +57,7 @@ public class TestConnection {
         }
 
         public void parseUrl(Properties props) throws SQLException {
-            super.parseURL(iurl, props);
+            parseURL(iurl, props);
         }
     }
 
@@ -172,8 +170,8 @@ public class TestConnection {
     @Test
     public void testDefaultSpec() {
         assertEquals("true",
-                (getMMConnection().getExecutionProperties()
-                        .getProperty(ExecutionProperties.JDBC4COLUMNNAMEANDLABELSEMANTICS) == null ? "true" : "false"));
+                (Boolean.toString(getMMConnection().getExecutionProperties()
+                        .getProperty(ExecutionProperties.JDBC4COLUMNNAMEANDLABELSEMANTICS) == null)));
     }
 
     /**
@@ -227,5 +225,62 @@ public class TestConnection {
         } catch (KublingSQLException ex) {
             MatcherAssert.assertThat(ex.getMessage(), CoreMatchers.containsString(JDBCPlugin.Event.KBL20036.name()));
         }
+    }
+
+    @Test
+    public void testSupportedResultSetHoldability() throws SQLException {
+        ConnectionImpl conn = getMMConnection();
+
+        assertEquals(ResultSet.HOLD_CURSORS_OVER_COMMIT, conn.getHoldability());
+        conn.setHoldability(ResultSet.HOLD_CURSORS_OVER_COMMIT);
+
+        try (Statement statement = conn.createStatement(
+                ResultSet.TYPE_FORWARD_ONLY,
+                ResultSet.CONCUR_READ_ONLY,
+                ResultSet.HOLD_CURSORS_OVER_COMMIT);
+             PreparedStatement prepared = conn.prepareStatement(
+                     "SELECT 1",
+                     ResultSet.TYPE_FORWARD_ONLY,
+                     ResultSet.CONCUR_READ_ONLY,
+                     ResultSet.HOLD_CURSORS_OVER_COMMIT);
+             CallableStatement callable = conn.prepareCall(
+                     "{call test()}",
+                     ResultSet.TYPE_FORWARD_ONLY,
+                     ResultSet.CONCUR_READ_ONLY,
+                     ResultSet.HOLD_CURSORS_OVER_COMMIT)) {
+            assertEquals(ResultSet.HOLD_CURSORS_OVER_COMMIT, statement.getResultSetHoldability());
+            assertEquals(ResultSet.HOLD_CURSORS_OVER_COMMIT, prepared.getResultSetHoldability());
+            assertEquals(ResultSet.HOLD_CURSORS_OVER_COMMIT, callable.getResultSetHoldability());
+        }
+
+        DatabaseMetaData metadata = conn.getMetaData();
+        assertTrue(metadata.supportsResultSetHoldability(ResultSet.HOLD_CURSORS_OVER_COMMIT));
+        assertFalse(metadata.supportsResultSetHoldability(ResultSet.CLOSE_CURSORS_AT_COMMIT));
+    }
+
+    @Test
+    public void testUnsupportedResultSetHoldabilityIsRejected() {
+        ConnectionImpl conn = getMMConnection();
+
+        assertThrows(SQLFeatureNotSupportedException.class,
+                () -> conn.setHoldability(ResultSet.CLOSE_CURSORS_AT_COMMIT));
+        assertThrows(SQLFeatureNotSupportedException.class,
+                () -> conn.createStatement(
+                        ResultSet.TYPE_FORWARD_ONLY,
+                        ResultSet.CONCUR_READ_ONLY,
+                        ResultSet.CLOSE_CURSORS_AT_COMMIT));
+        assertThrows(SQLFeatureNotSupportedException.class,
+                () -> conn.prepareStatement(
+                        "SELECT 1",
+                        ResultSet.TYPE_FORWARD_ONLY,
+                        ResultSet.CONCUR_READ_ONLY,
+                        ResultSet.CLOSE_CURSORS_AT_COMMIT));
+        assertThrows(SQLFeatureNotSupportedException.class,
+                () -> conn.prepareCall(
+                        "{call test()}",
+                        ResultSet.TYPE_FORWARD_ONLY,
+                        ResultSet.CONCUR_READ_ONLY,
+                        ResultSet.CLOSE_CURSORS_AT_COMMIT));
+        assertThrows(KublingSQLException.class, () -> conn.setHoldability(Integer.MIN_VALUE));
     }
 }

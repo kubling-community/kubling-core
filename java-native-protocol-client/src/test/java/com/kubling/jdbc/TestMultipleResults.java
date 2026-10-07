@@ -179,7 +179,8 @@ public class TestMultipleResults {
         ResultsMessage first = resultSet(1, true, 1);
         ResultsMessage replacement = updateCount(5, false, 2);
         when(dqp.executeRequest(anyLong(), any()))
-                .thenReturn(completed(first), completed(replacement));
+                .thenReturn(completed(first))
+                .thenReturn(completed(replacement));
         StatementImpl statement = statement(dqp, ResultSet.TYPE_FORWARD_ONLY);
 
         assertTrue(statement.execute("call unfinished_results()"));

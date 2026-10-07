@@ -98,7 +98,8 @@ final class DataTypeTransformer {
             }
         }
         try {
-            return (T) DataTypeManager.transformValue(DataTypeManager.convertToRuntimeType(value, true), runtimeType);
+            return targetType.cast(
+                    DataTypeManager.transformValue(DataTypeManager.convertToRuntimeType(value, true), runtimeType));
         } catch (Exception e) {
             String valueStr = value.toString();
             if (valueStr.length() > 20) {

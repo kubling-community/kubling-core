@@ -35,8 +35,8 @@ import com.kubling.core.util.PropertiesUtils;
 import com.kubling.core.util.SqlUtil;
 import com.kubling.net.CommunicationException;
 import com.kubling.net.ConnectionException;
-import com.kubling.net.ServerConnection;
 import com.kubling.net.KublingURL;
+import com.kubling.net.ServerConnection;
 import com.kubling.net.socket.SocketServerConnection;
 
 import javax.transaction.xa.Xid;
@@ -413,6 +413,18 @@ public class ConnectionImpl extends WrapperImpl implements KublingConnection {
         }
     }
 
+    private void validateResultSetHoldability(int resultSetHoldability) throws SQLException {
+        if (resultSetHoldability == ResultSet.HOLD_CURSORS_OVER_COMMIT) {
+            return;
+        }
+        if (resultSetHoldability == ResultSet.CLOSE_CURSORS_AT_COMMIT) {
+            throw new SQLFeatureNotSupportedException(JDBCPlugin.Util.getString(
+                    "MMConnection.Holdability_not_supported", "ResultSet.CLOSE_CURSORS_AT_COMMIT"));
+        }
+        throw new KublingSQLException(JDBCPlugin.Util.getString(
+                "MMConnection.Invalid_holdability", resultSetHoldability));
+    }
+
     public boolean getAutoCommit() throws SQLException {
         //Check to see the connection is open
         checkConnection();
@@ -579,6 +591,7 @@ public class ConnectionImpl extends WrapperImpl implements KublingConnection {
 
         validateResultSetType(resultSetType);
         validateResultSetConcurrency(resultSetConcurrency);
+        validateResultSetHoldability(resultSetHoldability);
         validateSQL(sql);
 
         // add the statement object to the map
@@ -863,7 +876,7 @@ public class ConnectionImpl extends WrapperImpl implements KublingConnection {
 
         validateResultSetType(resultSetType);
         validateResultSetConcurrency(resultSetConcurrency);
-        //TODO: implement close cursors at commit
+        validateResultSetHoldability(resultSetHoldability);
 
         // add the statement object to the map
         StatementImpl newStatement = new StatementImpl(this, resultSetType, resultSetConcurrency);
@@ -893,8 +906,8 @@ public class ConnectionImpl extends WrapperImpl implements KublingConnection {
 
         validateResultSetType(resultSetType);
         validateResultSetConcurrency(resultSetConcurrency);
+        validateResultSetHoldability(resultSetHoldability);
         validateSQL(sql);
-        //TODO: implement close cursors at commit
 
         // add the statement object to the map
         CallableStatementImpl newStatement = new CallableStatementImpl(this, sql, resultSetType, resultSetConcurrency);
@@ -929,7 +942,8 @@ public class ConnectionImpl extends WrapperImpl implements KublingConnection {
     }
 
     public void setHoldability(int holdability) throws SQLException {
-        throw SqlUtil.createFeatureNotSupportedException();
+        checkConnection();
+        validateResultSetHoldability(holdability);
     }
 
     public Savepoint setSavepoint() throws SQLException {
@@ -1036,6 +1050,20 @@ public class ConnectionImpl extends WrapperImpl implements KublingConnection {
 
     public void setInLocalTxn(boolean inLocalTxn) {
         this.inLocalTxn = inLocalTxn;
+    }
+
+    void checkCanStartTransaction() throws SQLException {
+        checkConnection();
+        if (this.transactionXid != null || this.inLocalTxn) {
+            throw new KublingSQLException(JDBCPlugin.Util.getString(
+                    "MMStatement.Invalid_During_Transaction", "START TRANSACTION"));
+        }
+    }
+
+    void startLocalTransaction() throws SQLException {
+        checkCanStartTransaction();
+        setAutoCommit(false);
+        beginLocalTxnIfNeeded();
     }
 
     public void saveTransactionCharacteristics() {

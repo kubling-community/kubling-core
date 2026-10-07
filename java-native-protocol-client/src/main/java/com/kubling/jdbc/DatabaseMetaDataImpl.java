@@ -432,12 +432,12 @@ public class DatabaseMetaDataImpl extends WrapperImpl implements DatabaseMetaDat
         // to filter.
 
         // list containing records/rows in the ResultSet
-        List records = new ArrayList(0);
+        List<List<?>> records = new ArrayList<>(0);
 
         /* **********************************************************************
          * Hardcoding JDBC column names for the columns returned in results object
          * **********************************************************************/
-        Map[] metadataList = new Map[8];
+        Map<?, ?>[] metadataList = new Map<?, ?>[8];
 
         // HardCoding metadata details for SCOPE column
         metadataList[0] = StatementImpl.getColumnMetadata(null, JDBCColumnNames.BEST_ROW.SCOPE,
@@ -487,7 +487,7 @@ public class DatabaseMetaDataImpl extends WrapperImpl implements DatabaseMetaDat
         /* **********************************************************************
          * Hardcoding JDBC column names for the columns returned in results object
          * **********************************************************************/
-        Map[] metadataList = new Map[1];
+        Map<?, ?>[] metadataList = new Map<?, ?>[1];
 
         // HardCoding metadata details for TABLE_CAT column
         metadataList[0] = StatementImpl.getColumnMetadata(null, JDBCColumnNames.CATALOGS.TABLE_CAT,
@@ -517,11 +517,11 @@ public class DatabaseMetaDataImpl extends WrapperImpl implements DatabaseMetaDat
     @Override
     public ResultSet getColumnPrivileges(String catalog, String schema, String table, String columnName) throws SQLException {
 
-        List records = new ArrayList(0);
+        List<List<?>> records = new ArrayList<>(0);
         /* **********************************************************************
          * Hardcoding JDBC column names for the columns returned in results object
          * **********************************************************************/
-        Map[] metadataList = new Map[8];
+        Map<?, ?>[] metadataList = new Map<?, ?>[8];
 
         metadataList[0] = StatementImpl.getColumnMetadata(null, JDBCColumnNames.PRIVILEGES.TABLE_CAT,
                 DataTypeManager.DefaultDataTypes.STRING, ResultsMetadataConstants.NULL_TYPES.NULLABLE, driverConnection);
@@ -564,7 +564,7 @@ public class DatabaseMetaDataImpl extends WrapperImpl implements DatabaseMetaDat
         }
 
         // list which represent records containing column info
-        List records = new ArrayList();
+        List<List<?>> records = new ArrayList<>();
         ResultSetMetaData rmetadata;
         ResultSetImpl results;
         PreparedStatement prepareQuery = null;
@@ -584,7 +584,7 @@ public class DatabaseMetaDataImpl extends WrapperImpl implements DatabaseMetaDat
             // build the list of records of column description
             while (results.next()) {
                 // list represents a record on the Results object.
-                List currentRow = new ArrayList(JDBCColumnPositions.COLUMNS.MAX_COLUMNS);
+                List<Object> currentRow = new ArrayList<>(JDBCColumnPositions.COLUMNS.MAX_COLUMNS);
 
                 // add values in the current record on the Results object to the list
                 // number of values to be fetched from each row is MAX_COLUMNS.
@@ -882,7 +882,7 @@ public class DatabaseMetaDataImpl extends WrapperImpl implements DatabaseMetaDat
             table = PERCENT;
         }
         // list which represent records containing primary key info
-        List records = new ArrayList();
+        List<List<?>> records = new ArrayList<>();
         ResultSetMetaData rmetadata;
         ResultSetImpl results;
         PreparedStatement prepareQuery = null;
@@ -912,7 +912,7 @@ public class DatabaseMetaDataImpl extends WrapperImpl implements DatabaseMetaDat
             // build the list of records from server's Results object.
             while (results.next()) {
                 // list represents a record on the Results object.
-                List currentRow = new ArrayList(13);
+                List<Object> currentRow = new ArrayList<>(13);
                 // add values in the current record on the Results object to the list
                 // number of values to be fetched from each row is MAX_COLUMNS.
                 for (int i = 0; i < JDBCColumnPositions.INDEX_INFO.MAX_COLUMNS; i++) {
@@ -1119,7 +1119,7 @@ public class DatabaseMetaDataImpl extends WrapperImpl implements DatabaseMetaDat
         }
 
         // list which represent records containing primary key info
-        List records = new ArrayList();
+        List<List<?>> records = new ArrayList<>();
         ResultSetMetaData rmetadata;
         ResultSetImpl results;
         PreparedStatement prepareQuery = null;
@@ -1136,7 +1136,7 @@ public class DatabaseMetaDataImpl extends WrapperImpl implements DatabaseMetaDat
             // build the list of records from server's Results object.
             while (results.next()) {
                 // list represents a record on the Results object.
-                List currentRow = new ArrayList(7);
+                List<Object> currentRow = new ArrayList<>(7);
                 // add values in the current record on the Results object to the list
                 // number of values to be fetched from each row is MAX_COLUMNS.
                 for (int i = 0; i < JDBCColumnPositions.PRIMARY_KEYS.MAX_COLUMNS; i++) {
@@ -1184,7 +1184,7 @@ public class DatabaseMetaDataImpl extends WrapperImpl implements DatabaseMetaDat
         }
 
         // list which represent records containing procedure column info
-        List records = new ArrayList();
+        List<List<?>> records = new ArrayList<>();
 
         ResultSetMetaData rmetadata;
         ResultSetImpl results;
@@ -1213,7 +1213,7 @@ public class DatabaseMetaDataImpl extends WrapperImpl implements DatabaseMetaDat
             // build the list of records from server's Results object.
             while (results.next()) {
                 // list represents a record on the Results object.
-                List currentRow = new ArrayList(13);
+                List<Object> currentRow = new ArrayList<>(13);
                 // add values in the current record on the Results object to the list
                 // number of values to be fetched from each row is MAX_COLUMNS.
                 for (int i = 0; i < JDBCColumnPositions.PROCEDURE_COLUMNS.MAX_COLUMNS; i++) {
@@ -1270,7 +1270,7 @@ public class DatabaseMetaDataImpl extends WrapperImpl implements DatabaseMetaDat
         }
 
         // list which represent records containing procedure info
-        List records = new ArrayList();
+        List<List<?>> records = new ArrayList<>();
         ResultSetMetaData rmetadata;
         ResultSetImpl results;
 
@@ -1285,7 +1285,7 @@ public class DatabaseMetaDataImpl extends WrapperImpl implements DatabaseMetaDat
             // build the list of records from server's Results object.
             while (results.next()) {
                 // list represents a record on the Results object.
-                List currentRow = new ArrayList(JDBCColumnPositions.PROCEDURES.MAX_COLUMNS);
+                List<Object> currentRow = new ArrayList<>(JDBCColumnPositions.PROCEDURES.MAX_COLUMNS);
                 // add values in the current record on the Results object to the list
                 // number of values to be fetched from each row is MAX_COLUMNS.
                 // there are 3 columns are reserved for future use
@@ -1364,12 +1364,12 @@ public class DatabaseMetaDataImpl extends WrapperImpl implements DatabaseMetaDat
      */
     public ResultSet getSuperTables(String catalog, String schemaPattern,
                                     String tableNamePattern) throws SQLException {
-        List records = new ArrayList(0);
+        List<List<?>> records = new ArrayList<>(0);
 
         /* **********************************************************************
          * Hardcoding JDBC column names for the columns returned in results object
          * **********************************************************************/
-        Map[] metadataList = new Map[4];
+        Map<?, ?>[] metadataList = new Map<?, ?>[4];
 
         // HardCoding metadata details for TABLE_CAT column
         metadataList[0] = StatementImpl.getColumnMetadata(null, JDBCColumnNames.SUPER_TABLES.TABLE_CAT,
@@ -1403,12 +1403,12 @@ public class DatabaseMetaDataImpl extends WrapperImpl implements DatabaseMetaDat
      */
     public ResultSet getSuperTypes(String catalog, String schemaPattern,
                                    String tableNamePattern) throws SQLException {
-        List records = new ArrayList(0);
+        List<List<?>> records = new ArrayList<>(0);
 
         /* **********************************************************************
          * Hardcoding JDBC column names for the columns returned in results object
          * **********************************************************************/
-        Map[] metadataList = new Map[6];
+        Map<?, ?>[] metadataList = new Map<?, ?>[6];
 
         // HardCoding metadata details for TYPE_CAT column
         metadataList[0] = StatementImpl.getColumnMetadata(null, JDBCColumnNames.SUPER_TYPES.TYPE_CAT,
@@ -1443,11 +1443,11 @@ public class DatabaseMetaDataImpl extends WrapperImpl implements DatabaseMetaDat
     }
 
     public ResultSet getTablePrivileges(String catalog, String schemaPattern, String tableName) throws SQLException {
-        List records = new ArrayList(0);
+        List<List<?>> records = new ArrayList<>(0);
         /* **********************************************************************
          * Hardcoding JDBC column names for the columns returned in results object
          * **********************************************************************/
-        Map[] metadataList = new Map[7];
+        Map<?, ?>[] metadataList = new Map<?, ?>[7];
 
         metadataList[0] = StatementImpl.getColumnMetadata(null, JDBCColumnNames.PRIVILEGES.TABLE_CAT,
                 DataTypeManager.DefaultDataTypes.STRING, ResultsMetadataConstants.NULL_TYPES.NULLABLE, driverConnection);
@@ -1484,7 +1484,7 @@ public class DatabaseMetaDataImpl extends WrapperImpl implements DatabaseMetaDat
         }
 
         // list which represent records containing tables info
-        List records = new ArrayList();
+        List<List<?>> records = new ArrayList<>();
 
         // query string to be submitted to get table metadata info
         StringBuilder sqlQuery = new StringBuilder(QUERY_TABLES);
@@ -1534,7 +1534,7 @@ public class DatabaseMetaDataImpl extends WrapperImpl implements DatabaseMetaDat
             // build the list of records from server's Results object.
             while (results.next()) {
                 // list represents a record on the Results object.
-                List currentRow = new ArrayList(11);
+                List<Object> currentRow = new ArrayList<>(11);
                 // add values in the current record on the Results object to the list
                 // number of values to be fetched from each row is MAX_COLUMNS.
                 for (int i = 0; i < JDBCColumnPositions.TABLES.MAX_COLUMNS; i++) {
@@ -1562,7 +1562,7 @@ public class DatabaseMetaDataImpl extends WrapperImpl implements DatabaseMetaDat
     public ResultSet getTableTypes() throws SQLException {
 
         // list which represent records containing Table Type info
-        List records = new ArrayList(5);
+        List<List<?>> records = new ArrayList<>(5);
         /* *******************************
          * HardCoding JDBC specific values
          * ********************************/
@@ -1577,7 +1577,7 @@ public class DatabaseMetaDataImpl extends WrapperImpl implements DatabaseMetaDat
          * Hardcoding JDBC column names for the columns returned in results object
          * **********************************************************************/
 
-        Map[] metadataList = new Map[1];
+        Map<?, ?>[] metadataList = new Map<?, ?>[1];
 
         metadataList[0] = StatementImpl.getColumnMetadata(null, JDBCColumnNames.TABLE_TYPES.TABLE_TYPE,
                 DataTypeManager.DefaultDataTypes.STRING, ResultsMetadataConstants.NULL_TYPES.NOT_NULL, driverConnection);
@@ -1678,7 +1678,7 @@ public class DatabaseMetaDataImpl extends WrapperImpl implements DatabaseMetaDat
         records.add(Arrays.asList(
                 createTypeInfoRow("clob", null, null, Boolean.TRUE, Boolean.TRUE, 0)));
 
-        Map[] metadataList = new Map[18];
+        Map<?, ?>[] metadataList = new Map<?, ?>[18];
 
         metadataList[0] = StatementImpl.getColumnMetadata(
                 CoreConstants.SYSTEM_MODEL + "." + DATA_TYPES,
@@ -1940,7 +1940,7 @@ public class DatabaseMetaDataImpl extends WrapperImpl implements DatabaseMetaDat
                 DataTypeManager.DefaultDataTypes.STRING,
                 DataTypeManager.DefaultDataTypes.SHORT
         };
-        return dummyStatement().createResultSet(Collections.EMPTY_LIST, columnNames, dataTypes);
+        return dummyStatement().createResultSet(Collections.emptyList(), columnNames, dataTypes);
     }
 
     private StatementImpl dummyStatement() {
@@ -2296,7 +2296,7 @@ public class DatabaseMetaDataImpl extends WrapperImpl implements DatabaseMetaDat
 
     @Override
     public boolean supportsResultSetHoldability(int holdability) {
-        return false;
+        return holdability == ResultSet.HOLD_CURSORS_OVER_COMMIT;
     }
 
     /**
@@ -2406,13 +2406,13 @@ public class DatabaseMetaDataImpl extends WrapperImpl implements DatabaseMetaDat
     private ResultSet getReferenceKeys(ResultSet results) throws SQLException {
 
         // list which represent records containing reference key info
-        List records = new ArrayList();
+        List<List<?>> records = new ArrayList<>();
         ResultSetMetaData rmetadata;
         try {
             // build the list of records from Results object.
             while (results.next()) {
                 // list represents a record on the Results object.
-                List currentRow = new ArrayList(15);
+                List<Object> currentRow = new ArrayList<>(15);
                 // add values in the current record on the Results object to the list
                 // number of values to be fetched from each row is MAX_COLUMNS.
                 for (int i = 0; i < JDBCColumnPositions.REFERENCE_KEYS.MAX_COLUMNS; i++) {
@@ -2485,7 +2485,7 @@ public class DatabaseMetaDataImpl extends WrapperImpl implements DatabaseMetaDat
             columnNamePattern = PERCENT;
         }
 
-        List records = new ArrayList();
+        List<List<?>> records = new ArrayList<>();
 
         ResultSetMetaData rmetadata;
         ResultSetImpl results;
@@ -2503,7 +2503,7 @@ public class DatabaseMetaDataImpl extends WrapperImpl implements DatabaseMetaDat
             rmetadata = results.getMetaData();
             int cols = rmetadata.getColumnCount();
             while (results.next()) {
-                List currentRow = new ArrayList(cols);
+                List<Object> currentRow = new ArrayList<>(cols);
                 for (int i = 0; i < cols; i++) {
                     currentRow.add(results.getObject(i + 1));
                 }
@@ -2549,7 +2549,7 @@ public class DatabaseMetaDataImpl extends WrapperImpl implements DatabaseMetaDat
         if (functionNamePattern == null) {
             functionNamePattern = PERCENT;
         }
-        List records = new ArrayList();
+        List<List<?>> records = new ArrayList<>();
 
         ResultSetMetaData rmetadata;
         ResultSetImpl results;
@@ -2562,7 +2562,7 @@ public class DatabaseMetaDataImpl extends WrapperImpl implements DatabaseMetaDat
             rmetadata = results.getMetaData();
             int cols = rmetadata.getColumnCount();
             while (results.next()) {
-                List currentRow = new ArrayList(cols);
+                List<Object> currentRow = new ArrayList<>(cols);
 
                 for (int i = 0; i < cols; i++) {
                     currentRow.add(results.getObject(i + 1));
@@ -2594,7 +2594,7 @@ public class DatabaseMetaDataImpl extends WrapperImpl implements DatabaseMetaDat
             schemaPattern = PERCENT;
         }
         // list which represent records containing schema info
-        List records = new ArrayList();
+        List<List<?>> records = new ArrayList<>();
 
         ResultSetMetaData rmetadata;
         ResultSetImpl results;
@@ -2606,7 +2606,7 @@ public class DatabaseMetaDataImpl extends WrapperImpl implements DatabaseMetaDat
 
             while (results.next()) {
                 // each row will have only one column(Virtual database name)
-                List currentRow = new ArrayList(2);
+                List<Object> currentRow = new ArrayList<>(2);
 
                 for (int i = 0; i < JDBCColumnPositions.SCHEMAS.MAX_COLUMNS; i++) {
                     // get the value at the current index add it to currentRow

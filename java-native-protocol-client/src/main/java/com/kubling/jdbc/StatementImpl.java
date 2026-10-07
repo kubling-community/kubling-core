@@ -482,15 +482,13 @@ public class StatementImpl extends WrapperImpl implements KublingStatement {
 
     protected void createResultSet(ResultsMessage resultsMsg) throws SQLException {
         //create out/return parameter index map if there is any
-        List listOfParameters = resultsMsg.getParameters();
+        List<ParameterInfo> listOfParameters = resultsMsg.getParameters();
         if (listOfParameters != null) {
             outParamIndexMap.clear();
             outParamByName.clear();
             //get the size of result set
             int resultSetSize = 0;
-            Iterator iteratorOfParameters = listOfParameters.iterator();
-            while (iteratorOfParameters.hasNext()) {
-                ParameterInfo parameter = (ParameterInfo) iteratorOfParameters.next();
+            for (ParameterInfo parameter : listOfParameters) {
                 if (parameter.getType() == ParameterInfo.RESULT_SET) {
                     resultSetSize = parameter.getNumColumns();
                     //one ResultSet only
@@ -501,9 +499,7 @@ public class StatementImpl extends WrapperImpl implements KublingStatement {
             //return needs to be the first
             int index = 0; //index in user call - {?=call sp(?)}
             int count = 0;
-            iteratorOfParameters = listOfParameters.iterator();
-            while (iteratorOfParameters.hasNext()) {
-                ParameterInfo parameter = (ParameterInfo) iteratorOfParameters.next();
+            for (ParameterInfo parameter : listOfParameters) {
                 if (parameter.getType() == ParameterInfo.RETURN_VALUE) {
                     count++;
                     index++;
@@ -514,9 +510,7 @@ public class StatementImpl extends WrapperImpl implements KublingStatement {
                 }
             }
 
-            iteratorOfParameters = listOfParameters.iterator();
-            while (iteratorOfParameters.hasNext()) {
-                ParameterInfo parameter = (ParameterInfo) iteratorOfParameters.next();
+            for (ParameterInfo parameter : listOfParameters) {
                 if (parameter.getType() != ParameterInfo.RETURN_VALUE && parameter.getType() != ParameterInfo.RESULT_SET) {
                     index++;
                     if (parameter.getType() == ParameterInfo.OUT || parameter.getType() == ParameterInfo.INOUT) {
@@ -557,7 +551,6 @@ public class StatementImpl extends WrapperImpl implements KublingStatement {
         return executeSql(commands, isBatchedCommand, resultsMode, synch, options, false);
     }
 
-    @SuppressWarnings("unchecked")
     protected ResultsFuture<Boolean> executeSql(
             String[] commands,
             boolean isBatchedCommand,
@@ -638,13 +631,16 @@ public class StatementImpl extends WrapperImpl implements KublingStatement {
                 Boolean commit = null;
                 if (StringUtil.startsWithIgnoreCase(command, "start")) {
                     boolean success = false;
+                    boolean restoreCharacteristics = false;
                     try {
+                        this.getMMConnection().checkCanStartTransaction();
                         String characteristic = match.group(3);
                         if (characteristic != null) {
                             //this does not match the per connection semantics of jdbc,
                             //as this is per transaction
                             characteristic = characteristic.trim();
                             this.getMMConnection().saveTransactionCharacteristics();
+                            restoreCharacteristics = true;
                             if (StringUtil.endsWithIgnoreCase(characteristic, "only")) {
                                 this.getMMConnection().setReadOnly(true);
                             } else if (StringUtil.endsWithIgnoreCase(characteristic, "write")) {
@@ -658,11 +654,10 @@ public class StatementImpl extends WrapperImpl implements KublingStatement {
                                 setIsolationLevel(characteristic);
                             }
                         }
-                        //TODO: this should force a start and through an exception if we're already in a txn
-                        this.getConnection().setAutoCommit(false);
+                        this.getMMConnection().startLocalTransaction();
                         success = true;
                     } finally {
-                        if (!success) {
+                        if (!success && restoreCharacteristics) {
                             this.getMMConnection().restoreTransactionCharacteristics();
                         }
                     }
@@ -681,7 +676,7 @@ public class StatementImpl extends WrapperImpl implements KublingStatement {
                 if (commit != null && !synch) {
                     ResultsFuture<?> pending = this.getConnection().submitSetAutoCommitTrue(commit);
                     final ResultsFuture<Boolean> result = new ResultsFuture<>();
-                    pending.addCompletionListener((ResultsFuture.CompletionListener) future -> {
+                    pending.addCompletionListener(future -> {
                         try {
                             future.get();
                             result.getResultsReceiver().receiveResults(false);
@@ -889,7 +884,7 @@ public class StatementImpl extends WrapperImpl implements KublingStatement {
         if (this.getConnection().getServerConnection() == null || !this.getConnection().getServerConnection().isLocal()) {
             return false;
         }
-        String useCallingThread = getExecutionProperty(LocalProfile.USE_CALLING_THREAD);
+        String useCallingThread = getExecutionPropertyValue(LocalProfile.USE_CALLING_THREAD);
         return (useCallingThread == null || Boolean.parseBoolean(useCallingThread));
     }
 
@@ -1216,11 +1211,11 @@ public class StatementImpl extends WrapperImpl implements KublingStatement {
      */
     protected void copyPropertiesToRequest(RequestMessage res) throws KublingSQLException {
         // Get partial mode
-        String partial = getExecutionProperty(ExecutionProperties.PROP_PARTIAL_RESULTS_MODE);
+        String partial = getExecutionPropertyValue(ExecutionProperties.PROP_PARTIAL_RESULTS_MODE);
         res.setPartialResults(Boolean.parseBoolean(partial));
 
         // Get transaction auto-wrap mode
-        String txnAutoWrapMode = getExecutionProperty(ExecutionProperties.PROP_TXN_AUTO_WRAP);
+        String txnAutoWrapMode = getExecutionPropertyValue(ExecutionProperties.PROP_TXN_AUTO_WRAP);
         try {
             res.setTxnAutoWrapMode(txnAutoWrapMode);
         } catch (KublingProcessingException e) {
@@ -1228,12 +1223,12 @@ public class StatementImpl extends WrapperImpl implements KublingStatement {
         }
 
         // Get result set cache mode
-        String rsCache = getExecutionProperty(ExecutionProperties.RESULT_SET_CACHE_MODE);
+        String rsCache = getExecutionPropertyValue(ExecutionProperties.RESULT_SET_CACHE_MODE);
         res.setUseResultSetCache(Boolean.parseBoolean(rsCache));
 
         res.setAnsiQuotedIdentifiers(Boolean.parseBoolean(
-                getExecutionProperty(ExecutionProperties.ANSI_QUOTED_IDENTIFIERS)));
-        String showPlan = getExecutionProperty(ExecutionProperties.SQL_OPTION_SHOWPLAN);
+                getExecutionPropertyValue(ExecutionProperties.ANSI_QUOTED_IDENTIFIERS)));
+        String showPlan = getExecutionPropertyValue(ExecutionProperties.SQL_OPTION_SHOWPLAN);
         if (showPlan != null) {
             try {
                 res.setShowPlan(RequestMessage.ShowPlan.valueOf(showPlan.toUpperCase()));
@@ -1241,7 +1236,7 @@ public class StatementImpl extends WrapperImpl implements KublingStatement {
                 // Ignored
             }
         }
-        String noExec = getExecutionProperty(ExecutionProperties.NOEXEC);
+        String noExec = getExecutionPropertyValue(ExecutionProperties.NOEXEC);
         if (noExec != null) {
             res.setNoExec(noExec.equalsIgnoreCase("ON"));
         }
@@ -1273,11 +1268,19 @@ public class StatementImpl extends WrapperImpl implements KublingStatement {
         this.payload = payload;
     }
 
+    @Override
+    @Deprecated
     public void setExecutionProperty(String name, String value) {
         this.execProps.setProperty(name, value);
     }
 
+    @Override
+    @Deprecated
     public String getExecutionProperty(String name) {
+        return getExecutionPropertyValue(name);
+    }
+
+    final String getExecutionPropertyValue(String name) {
         return this.execProps.getProperty(name);
     }
 
@@ -1295,10 +1298,14 @@ public class StatementImpl extends WrapperImpl implements KublingStatement {
         return null;
     }
 
+    @Override
+    @Deprecated
     public String getDebugLog() {
         return this.debugLog;
     }
 
+    @Override
+    @Deprecated
     public Collection<Annotation> getAnnotations() {
         return this.annotations;
     }
@@ -1393,12 +1400,13 @@ public class StatementImpl extends WrapperImpl implements KublingStatement {
         if (generatedKeysResultSet != null) {
             return generatedKeysResultSet;
         }
-        generatedKeysResultSet = createDetachedResultSet(Collections.emptyList(), new Map[0]);
+        generatedKeysResultSet = createDetachedResultSet(Collections.emptyList(), new Map<?, ?>[0]);
         return generatedKeysResultSet;
     }
 
     public int getResultSetHoldability() throws SQLException {
-        throw SqlUtil.createFeatureNotSupportedException();
+        checkStatement();
+        return ResultSet.HOLD_CURSORS_OVER_COMMIT;
     }
 
     public void setCursorName(String name) throws SQLException {
@@ -1413,14 +1421,14 @@ public class StatementImpl extends WrapperImpl implements KublingStatement {
         this.maxFieldSize = max;
     }
 
-    ResultSetImpl createResultSet(List records, String[] columnNames, String[] dataTypes) throws SQLException {
-        Map[] metadata = createMetadataMap(columnNames, dataTypes);
+    ResultSetImpl createResultSet(List<?> records, String[] columnNames, String[] dataTypes) throws SQLException {
+        Map<?, ?>[] metadata = createMetadataMap(columnNames, dataTypes);
         return createResultSet(records, metadata);
     }
 
-    private Map[] createMetadataMap(String[] columnNames, String[] dataTypes)
+    private Map<?, ?>[] createMetadataMap(String[] columnNames, String[] dataTypes)
             throws SQLException {
-        Map[] metadata = new Map[columnNames.length];
+        Map<?, ?>[] metadata = new Map<?, ?>[columnNames.length];
         for (int i = 0; i < columnNames.length; i++) {
             metadata[i] = getColumnMetadata(null, columnNames[i], dataTypes[i],
                     ResultsMetadataConstants.NULL_TYPES.UNKNOWN, driverConnection);
@@ -1428,18 +1436,18 @@ public class StatementImpl extends WrapperImpl implements KublingStatement {
         return metadata;
     }
 
-    ResultSetImpl createResultSet(List records, Map[] columnMetadata) throws SQLException {
+    ResultSetImpl createResultSet(List<?> records, Map<?, ?>[] columnMetadata) throws SQLException {
         ResultSetMetaData rsmd = createResultSetMetaData(columnMetadata);
 
         return createResultSet(records, rsmd);
     }
 
-    private ResultSetMetaData createResultSetMetaData(Map[] columnMetadata) {
+    private ResultSetMetaData createResultSetMetaData(Map<?, ?>[] columnMetadata) {
         return new ResultSetMetaDataImpl(new MetadataProvider(columnMetadata),
-                this.getExecutionProperty(ExecutionProperties.JDBC4COLUMNNAMEANDLABELSEMANTICS));
+                this.getExecutionPropertyValue(ExecutionProperties.JDBC4COLUMNNAMEANDLABELSEMANTICS));
     }
 
-    ResultSetImpl createResultSet(List records, ResultSetMetaData rsmd) throws SQLException {
+    ResultSetImpl createResultSet(List<?> records, ResultSetMetaData rsmd) throws SQLException {
         if (rsmd.getColumnCount() > 0) {
             rsmd.getScale(1); //force the load of the metadata
         }
@@ -1451,7 +1459,7 @@ public class StatementImpl extends WrapperImpl implements KublingStatement {
         return resultSet;
     }
 
-    private ResultSetImpl createDetachedResultSet(List records, Map[] columnMetadata) throws SQLException {
+    private ResultSetImpl createDetachedResultSet(List<?> records, Map<?, ?>[] columnMetadata) throws SQLException {
         ResultSetMetaData metadata = createResultSetMetaData(columnMetadata);
         if (metadata.getColumnCount() > 0) {
             metadata.getScale(1);
@@ -1460,14 +1468,18 @@ public class StatementImpl extends WrapperImpl implements KublingStatement {
         return newResultSet(resultsMsg, metadata, 0, false);
     }
 
-    static ResultsMessage createDummyResultsMessage(String[] columnNames, String[] dataTypes, List records) {
+    static ResultsMessage createDummyResultsMessage(String[] columnNames, String[] dataTypes, List<?> records) {
         ResultsMessage resultsMsg = new ResultsMessage();
         resultsMsg.setColumnNames(columnNames);
         resultsMsg.setDataTypes(dataTypes);
         resultsMsg.setFirstRow(1);
         resultsMsg.setLastRow(records.size());
         resultsMsg.setFinalRow(records.size());
-        resultsMsg.setResults((List[]) records.toArray(new List[0]));
+        List<List<?>> rows = new ArrayList<>(records.size());
+        for (Object record : records) {
+            rows.add((List<?>) record);
+        }
+        resultsMsg.setResults(rows);
         return resultsMsg;
     }
 

@@ -43,6 +43,7 @@ public interface KublingStatement extends java.sql.Statement {
      * @return Execution property value or null if not set
      * @deprecated use show statement
      */
+    @Deprecated
     String getExecutionProperty(String name);
 
     /**
@@ -52,6 +53,7 @@ public interface KublingStatement extends java.sql.Statement {
      * @param value Execution property value
      * @deprecated use set statement
      */
+    @Deprecated
     void setExecutionProperty(String name, String value);
 
     /**
@@ -73,6 +75,7 @@ public interface KublingStatement extends java.sql.Statement {
      * @return Debug log or null if no log exists
      * @deprecated use show statement
      */
+    @Deprecated
     String getDebugLog();
 
     /**
@@ -82,6 +85,7 @@ public interface KublingStatement extends java.sql.Statement {
      * @return Collection of {@link Annotation}s, may return null
      * @deprecated use show statement
      */
+    @Deprecated
     Collection<Annotation> getAnnotations();
 
     /**

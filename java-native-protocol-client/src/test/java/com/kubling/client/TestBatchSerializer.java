@@ -30,6 +30,7 @@ import org.junit.jupiter.api.Test;
 import java.io.*;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -135,6 +136,23 @@ public class TestBatchSerializer {
     @Test
     public void testSerializeNoData() throws Exception {
         helpTestSerialization(sampleBatchTypes, new List[0], BatchSerializer.CURRENT_VERSION);
+    }
+
+    @Test
+    public void testVersion74Compatibility() throws Exception {
+        List<?>[] legacyBatch = {new ArrayList<>(List.of("legacy", 7)), null};
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (ObjectOutputStream out = new ObjectOutputStream(bytes)) {
+            out.writeObject(legacyBatch);
+        }
+
+        List<List<Object>> result;
+        try (ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(bytes.toByteArray()))) {
+            result = BatchSerializer.readBatch(in, new String[0]);
+        }
+
+        assertEquals(List.of("legacy", 7), result.getFirst());
+        assertNull(result.get(1));
     }
 
     @Test

@@ -24,6 +24,7 @@ package com.kubling.client.util;
 
 import com.kubling.client.SourceWarning;
 import com.kubling.client.xa.XATransactionException;
+import com.kubling.core.ExecutionDiagnosticException;
 import com.kubling.core.KublingComponentException;
 import com.kubling.core.KublingException;
 import com.kubling.core.KublingRuntimeException;
@@ -76,11 +77,28 @@ public class ExceptionUtil {
 
     /**
      * Strip out the message and optionally the stacktrace
-     *
-     * @param t
-     * @return
      */
     public static Throwable sanitize(Throwable t, boolean preserveStack) {
+        if (t instanceof ExecutionDiagnosticException diagnostic) {
+            return new ExecutionDiagnosticException(diagnostic.getCode(), diagnostic.getMessage(),
+                    diagnostic.getTarget(), diagnostic.isRetryable());
+        }
+        if (t instanceof SourceWarning warning) {
+            Throwable cause = warning.getCause();
+            Throwable sanitizedCause = cause instanceof ExecutionDiagnosticException
+                    ? sanitize(cause, preserveStack)
+                    : sanitizeGeneric(warning, preserveStack);
+            SourceWarning result = new SourceWarning(warning.getModelName(), warning.getConnectorBindingName(),
+                    sanitizedCause, warning.isPartialResultsError());
+            if (preserveStack) {
+                result.setStackTrace(warning.getStackTrace());
+            }
+            return result;
+        }
+        return sanitizeGeneric(t, preserveStack);
+    }
+
+    private static Throwable sanitizeGeneric(Throwable t, boolean preserveStack) {
         String code;
         if (t instanceof KublingException) {
             code = ((KublingException) t).getCode();
@@ -114,8 +132,8 @@ public class ExceptionUtil {
         }
         if (result instanceof KublingException) {
             ((KublingException) result).setCode(code);
-        } else if (result instanceof KublingRuntimeException) {
-            ((KublingException) result).setCode(code);
+        } else if (result instanceof KublingRuntimeException runtimeException) {
+            runtimeException.setCode(code);
         }
         if (child != null) {
             result.initCause(child);

@@ -1016,8 +1016,15 @@ public class BatchSerializer {
         } catch (IOException e) {
             //7.4 compatibility
             if (types == null || types.length == 0) {
-                List<Object>[] result = (List<Object>[]) in.readObject();
-                return new ArrayList<>(Arrays.asList(result));
+                Object serializedBatch = in.readObject();
+                if (!(serializedBatch instanceof List<?>[] legacyRows)) {
+                    throw new StreamCorruptedException("Expected a serialized List[] batch");
+                }
+                List<List<Object>> result = new ArrayList<>(legacyRows.length);
+                for (List<?> row : legacyRows) {
+                    result.add(row == null ? null : new ArrayList<>(row));
+                }
+                return result;
             }
             throw e;
         }

@@ -149,7 +149,7 @@ public class SQLStates {
 
     public static final class SQLStateClass {
         private final String codeBeginsWith;
-        private final Set stateCodes = new HashSet();
+        private final Set<String> stateCodes = new HashSet<>();
 
         private SQLStateClass(String beginsWith) {
             this.codeBeginsWith = beginsWith;
