@@ -21,6 +21,7 @@ package com.kubling.client;
 import com.kubling.client.plan.Annotation;
 import com.kubling.client.plan.PlanNode;
 import com.kubling.client.util.ExceptionHolder;
+import com.kubling.core.ExecutionDiagnosticException;
 import com.kubling.core.KublingException;
 import com.kubling.core.util.ExternalizeUtil;
 import com.kubling.core.util.UnitTestUtil;
@@ -73,6 +74,33 @@ public class TestResultsMessage {
         assertEquals(ResultsMessage.LEGACY_RESULT_ID, copy.getResultId());
         assertFalse(copy.hasMoreResults());
         assertEquals(message.getResultsList(), copy.getResultsList());
+    }
+
+    @Test
+    public void testStructuredWarningsRoundTrip() throws Exception {
+        ResultsMessage message = message();
+        message.setWarnings(List.<Throwable>of(
+                new SourceWarning("model-1", "connector-1",
+                        new ExecutionDiagnosticException("SLOW_TARGET", "target was slow", "target-1", false),
+                        false),
+                new SourceWarning("model-2", "connector-2",
+                        new ExecutionDiagnosticException("SOURCE_UNAVAILABLE", "target failed", "target-2", true),
+                        true)));
+
+        ResultsMessage copy = UnitTestUtil.helpSerialize(message);
+        assertEquals(2, copy.getWarnings().size());
+        SourceWarning general = assertInstanceOf(SourceWarning.class, copy.getWarnings().get(0));
+        SourceWarning partial = assertInstanceOf(SourceWarning.class, copy.getWarnings().get(1));
+        assertFalse(general.isPartialResultsError());
+        assertTrue(partial.isPartialResultsError());
+        assertEquals("SLOW_TARGET",
+                assertInstanceOf(ExecutionDiagnosticException.class, general.getCause()).getCode());
+        ExecutionDiagnosticException cause =
+                assertInstanceOf(ExecutionDiagnosticException.class, partial.getCause());
+        assertEquals("SOURCE_UNAVAILABLE", cause.getCode());
+        assertEquals("target failed", cause.getMessage());
+        assertEquals("target-2", cause.getTarget());
+        assertTrue(cause.isRetryable());
     }
 
     private static ResultsMessage message() {

@@ -28,18 +28,26 @@ import org.junit.jupiter.api.Test;
 import java.io.FileInputStream;
 import java.io.ObjectInputStream;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 
 @SuppressWarnings("nls")
 public class TestHandshake {
 
-    //    @Test
-    // TODO replace the SER file
-    public void testCompatibility() throws Exception {
-        ObjectInputStream ois = new ObjectInputStream(
-                new FileInputStream(UnitTestUtil.getTestDataFile("handshake.ser")));
-        Handshake hs = (Handshake) ois.readObject();
-        assertEquals(AuthenticationType.USERPASSWORD, hs.getAuthType());
+    @Test
+    @SuppressWarnings("deprecation")
+    public void testVersion26_2Compatibility() throws Exception {
+        // Written by kubling-client 26.2. Add a new versioned fixture for a future compatibility boundary.
+        Handshake handshake;
+        try (ObjectInputStream in = new ObjectInputStream(
+                new FileInputStream(UnitTestUtil.getTestDataFile("handshake-26.2.ser")))) {
+            handshake = (Handshake) in.readObject();
+        }
+
+        assertEquals("26.02", handshake.getVersion());
+        assertEquals(AuthenticationType.USERPASSWORD, handshake.getAuthType());
+        assertArrayEquals(new byte[]{1, 2, 3}, handshake.getPublicKey());
+        assertArrayEquals(new byte[]{4, 5, 6, 7}, handshake.getPublicKeyLarge());
+        assertTrue(handshake.isCbc());
     }
 
     @Test

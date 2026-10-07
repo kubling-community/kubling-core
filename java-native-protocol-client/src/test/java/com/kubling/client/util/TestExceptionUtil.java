@@ -22,7 +22,10 @@
 
 package com.kubling.client.util;
 
+import com.kubling.client.SourceWarning;
+import com.kubling.core.ExecutionDiagnosticException;
 import com.kubling.core.KublingException;
+import com.kubling.core.KublingRuntimeException;
 import com.kubling.jdbc.JDBCPlugin;
 import org.junit.jupiter.api.Test;
 
@@ -30,6 +33,61 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @SuppressWarnings("nls")
 public class TestExceptionUtil {
+
+    @Test
+    public void testSanitizeDiagnosticSourceWarnings() {
+        for (boolean partial : new boolean[]{false, true}) {
+            ExecutionDiagnosticException diagnostic = new ExecutionDiagnosticException(
+                    "SOURCE_UNAVAILABLE", "one target is unavailable", "target-1", true);
+            SourceWarning original = new SourceWarning("model-1", "connector-1", diagnostic, partial);
+
+            SourceWarning copy = assertInstanceOf(SourceWarning.class, ExceptionUtil.sanitize(original, false));
+            assertNotSame(original, copy);
+            assertEquals("model-1", copy.getModelName());
+            assertEquals("connector-1", copy.getConnectorBindingName());
+            assertEquals(partial, copy.isPartialResultsError());
+            assertEquals(0, copy.getStackTrace().length);
+
+            ExecutionDiagnosticException cause =
+                    assertInstanceOf(ExecutionDiagnosticException.class, copy.getCause());
+            assertNotSame(diagnostic, cause);
+            assertEquals("SOURCE_UNAVAILABLE", cause.getCode());
+            assertEquals("one target is unavailable", cause.getMessage());
+            assertEquals("target-1", cause.getTarget());
+            assertTrue(cause.isRetryable());
+            assertNull(cause.getCause());
+            assertEquals(0, cause.getStackTrace().length);
+        }
+    }
+
+    @Test
+    public void testSanitizeOrdinarySourceWarningKeepsLegacyCauseSanitization() {
+        SourceWarning original = new SourceWarning("model-2", "connector-2",
+                new Exception("internal detail"), true);
+
+        SourceWarning copy = assertInstanceOf(SourceWarning.class, ExceptionUtil.sanitize(original, false));
+        assertEquals("model-2", copy.getModelName());
+        assertEquals("connector-2", copy.getConnectorBindingName());
+        assertTrue(copy.isPartialResultsError());
+        KublingException legacyCause = assertInstanceOf(KublingException.class, copy.getCause());
+        assertNull(legacyCause.getCode());
+        assertNull(legacyCause.getMessage());
+        assertEquals("java.lang.Exception", legacyCause.getCause().getMessage());
+        assertEquals(0, legacyCause.getStackTrace().length);
+    }
+
+    @Test
+    public void testSanitizeRuntimeExceptionPreservesCode() {
+        KublingRuntimeException original = new KublingRuntimeException(
+                JDBCPlugin.Event.KBL20000, "internal detail");
+
+        KublingRuntimeException copy = assertInstanceOf(
+                KublingRuntimeException.class, ExceptionUtil.sanitize(original, false));
+        assertNotSame(original, copy);
+        assertEquals("KBL20000", copy.getCode());
+        assertEquals("KBL20000", copy.getMessage());
+        assertEquals(0, copy.getStackTrace().length);
+    }
 
     @Test
     public void testSanitize() {
