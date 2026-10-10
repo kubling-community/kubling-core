@@ -36,6 +36,7 @@ import com.kubling.client.xa.XidImpl;
 import com.kubling.core.*;
 import com.kubling.core.types.*;
 import com.kubling.core.types.InputStreamFactory.StreamFactoryReference;
+import com.kubling.core.util.ObjectInputStreamWithClassloader;
 import com.kubling.core.util.ReaderInputStream;
 import com.kubling.jdbc.JDBCPlugin;
 import com.kubling.net.socket.Handshake;
@@ -48,10 +49,10 @@ import java.sql.Blob;
 import java.sql.Clob;
 import java.sql.SQLException;
 import java.sql.SQLXML;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 
 /**
@@ -63,13 +64,14 @@ public class CompactObjectOutputStream extends ObjectOutputStream {
     static final int TYPE_PRIMITIVE = 0;
     static final int TYPE_NON_PRIMITIVE = 1;
 
-    public static final Map<Class<?>, Integer> KNOWN_CLASSES = new HashMap<>();
-    public static final Map<Integer, Class<?>> KNOWN_CODES = new HashMap<>();
+    public static final Map<Class<?>, Integer> KNOWN_CLASSES = new ConcurrentHashMap<>();
+    public static final Map<Integer, Class<?>> KNOWN_CODES = new ConcurrentHashMap<>();
 
     private final List<InputStream> streams = new LinkedList<>();
     private final List<StreamFactoryReference> references = new LinkedList<>();
 
-    public static void addKnownClass(Class<?> clazz, byte code) {
+    public static synchronized void addKnownClass(Class<?> clazz, byte code) {
+        ObjectInputStreamWithClassloader.registerSafeClass(clazz);
         KNOWN_CLASSES.put(clazz, (int) code);
         if (KNOWN_CODES.put((int) code, clazz) != null) {
             throw new KublingRuntimeException(JDBCPlugin.Event.KBL20007, JDBCPlugin.Util.gs(JDBCPlugin.Event.KBL20007));

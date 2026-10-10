@@ -29,8 +29,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectStreamClass;
-import java.util.HashSet;
+import java.util.Collections;
+import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 public final class ObjectInputStreamWithClassloader extends
@@ -38,14 +40,16 @@ public final class ObjectInputStreamWithClassloader extends
 
     private final ClassLoader cl;
 
-    private static final Set<String> safeClasses = new HashSet<>();
+    private static final Set<String> safeClasses = ConcurrentHashMap.newKeySet();
 
     static {
 
         safeClasses.add(java.lang.Number.class.getName());
+        safeClasses.add(java.lang.Exception.class.getName());
         safeClasses.add(java.util.Properties.class.getName());
         safeClasses.add(java.util.Hashtable.class.getName());
         safeClasses.add("java.util.Arrays$ArrayList");
+        safeClasses.add(Collections.emptyList().getClass().getName());
 
         safeClasses.add("sun.util.calendar.ZoneInfo");
         safeClasses.add(java.util.TimeZone.class.getName());
@@ -59,6 +63,7 @@ public final class ObjectInputStreamWithClassloader extends
         safeClasses.add("com.kubling.client.DQP");
         safeClasses.add("com.kubling.client.RequestMessage");
         safeClasses.add("com.kubling.client.ResultsMessage");
+        safeClasses.add("com.kubling.client.SourceWarning");
         safeClasses.add("com.kubling.client.security.LogonException");
         safeClasses.add("com.kubling.client.security.KublingSecurityException");
         safeClasses.add("com.kubling.client.security.InvalidSessionException");
@@ -96,6 +101,7 @@ public final class ObjectInputStreamWithClassloader extends
         safeClasses.add(com.kubling.core.types.AbstractGeospatialType.class.getName());
 
         safeClasses.add("com.kubling.client.util.ExceptionHolder");
+        safeClasses.add(ExecutionDiagnosticException.class.getName());
         safeClasses.add(KublingRuntimeException.class.getName());
         safeClasses.add(KublingComponentException.class.getName());
         safeClasses.add(KublingException.class.getName());
@@ -118,11 +124,29 @@ public final class ObjectInputStreamWithClassloader extends
             throws IOException, ClassNotFoundException {
 
         //see java bug id 6434149
+        checkClass(desc.getName());
         try {
-            checkClass(desc.getName());
             return Class.forName(desc.getName(), false, cl);
         } catch (ClassNotFoundException e) {
             return super.resolveClass(desc);
+        }
+    }
+
+    /**
+     * Registers an exact class as safe for deserialization. Array types are
+     * represented by their component type so the registration does not retain
+     * the class or its class loader.
+     *
+     * @param type the class to register
+     * @throws NullPointerException if {@code type} is null
+     */
+    public static void registerSafeClass(Class<?> type) {
+        Objects.requireNonNull(type, "type");
+        while (type.isArray()) {
+            type = type.getComponentType();
+        }
+        if (!type.isPrimitive()) {
+            safeClasses.add(type.getName());
         }
     }
 
