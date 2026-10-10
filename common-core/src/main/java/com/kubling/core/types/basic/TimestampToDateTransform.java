@@ -50,7 +50,7 @@ public class TimestampToDateTransform extends Transform {
      *
      * @return Source type
      */
-    public Class getSourceType() {
+    public Class<?> getSourceType() {
         return Timestamp.class;
     }
 
@@ -59,7 +59,7 @@ public class TimestampToDateTransform extends Transform {
      *
      * @return Target type
      */
-    public Class getTargetType() {
+    public Class<?> getTargetType() {
         return java.sql.Date.class;
     }
 

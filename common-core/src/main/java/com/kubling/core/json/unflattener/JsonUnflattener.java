@@ -36,7 +36,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static org.apache.commons.lang3.Validate.isTrue;
-import static org.apache.commons.lang3.Validate.notNull;
 
 /**
  * {@link JsonUnflattener} provides a static {@link #unflatten(String)} method to unflatten any
@@ -145,7 +144,7 @@ public final class JsonUnflattener {
      * @param json     a JSON string
      */
     public JsonUnflattener(JsonCore<?> jsonCore, String json) {
-        this.jsonCore = notNull(jsonCore);
+        this.jsonCore = Objects.requireNonNull(jsonCore, "The validated object is null");
         root = parseJson(json);
     }
 
@@ -168,7 +167,7 @@ public final class JsonUnflattener {
      * @throws IOException if the jsonReader cannot be read
      */
     public JsonUnflattener(JsonCore<?> jsonCore, Reader jsonReader) throws IOException {
-        this.jsonCore = notNull(jsonCore);
+        this.jsonCore = Objects.requireNonNull(jsonCore, "The validated object is null");
         root = jsonCore.parse(jsonReader);
     }
 
@@ -189,7 +188,7 @@ public final class JsonUnflattener {
      * @param flattenedMap a flattened {@link Map}
      */
     public JsonUnflattener(JsonCore<?> jsonCore, Map<String, ?> flattenedMap) {
-        this.jsonCore = notNull(jsonCore);
+        this.jsonCore = Objects.requireNonNull(jsonCore, "The validated object is null");
         root = jsonCore.parse(new JsonifyLinkedHashMap<>(flattenedMap).toString());
     }
 
@@ -244,7 +243,7 @@ public final class JsonUnflattener {
      * @return this {@link JsonUnflattener}
      */
     public JsonUnflattener withFlattenMode(FlattenMode flattenMode) {
-        this.flattenMode = notNull(flattenMode);
+        this.flattenMode = Objects.requireNonNull(flattenMode, "The validated object is null");
         return this;
     }
 
@@ -303,7 +302,7 @@ public final class JsonUnflattener {
      * @return this {@link JsonUnflattener}
      */
     public JsonUnflattener withPrintMode(PrintMode printMode) {
-        this.printMode = notNull(printMode);
+        this.printMode = Objects.requireNonNull(printMode, "The validated object is null");
         return this;
     }
 

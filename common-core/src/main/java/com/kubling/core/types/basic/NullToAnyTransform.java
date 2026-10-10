@@ -47,7 +47,7 @@ public class NullToAnyTransform extends Transform {
      *
      * @return Source type
      */
-    public Class getSourceType() {
+    public Class<?> getSourceType() {
         return NullType.class;
     }
 
@@ -56,7 +56,7 @@ public class NullToAnyTransform extends Transform {
      *
      * @return Target type
      */
-    public Class getTargetType() {
+    public Class<?> getTargetType() {
         return targetType;
     }
 

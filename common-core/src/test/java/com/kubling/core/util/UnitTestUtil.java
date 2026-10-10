@@ -165,9 +165,9 @@ public class UnitTestUtil {
         }
 
         // Finally (if both are comparable) then compareTo ...
-        if (obj1 instanceof Comparable || obj2 instanceof Comparable) {
-            Comparable comp1 = (Comparable) obj1;
-            Comparable comp2 = (Comparable) obj2;
+        if (obj1 instanceof Comparable<?> || obj2 instanceof Comparable<?>) {
+            Comparable<Object> comp1 = asComparable(obj1);
+            Comparable<Object> comp2 = asComparable(obj2);
             helpTestCompareTo(correctCompareToResult, comp1, comp2);
 
             // Test that compareTo is reflexive
@@ -192,8 +192,8 @@ public class UnitTestUtil {
      * @param obj2                   the reference to the second Comparable object; may be null
      */
     protected static void helpTestCompareTo(final int correctCompareToResult,
-                                            final Comparable obj1,
-                                            final Comparable obj2) {
+                                            final Comparable<Object> obj1,
+                                            final Comparable<Object> obj2) {
         if (obj1 != null) {
             if (obj2 != null) {
                 // They are both non-null, so analyze the result of 'compareTo'
@@ -347,10 +347,15 @@ public class UnitTestUtil {
      *
      * @param obj the reference to the Comparable object; may be null
      */
-    protected static void helpTestReflexiveCompareTo(final Comparable obj) {
+    protected static void helpTestReflexiveCompareTo(final Comparable<Object> obj) {
         if (obj != null && obj.compareTo(obj) != 0) {
             fail("The compareTo method is not reflexive; obj.compareTo(obj) does not equal 0");
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Comparable<Object> asComparable(Object object) {
+        return (Comparable<Object>) object;
     }
 
     //============================================================================================================================

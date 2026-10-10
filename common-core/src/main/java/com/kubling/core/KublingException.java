@@ -47,31 +47,31 @@ public class KublingException extends Exception {
 
     public KublingException(BundleUtil.Event code, final String message) {
         super(message);
-        setCode(code.toString());
+        this.code = code.toString();
     }
 
     public KublingException(BundleUtil.Event code, Throwable t, final String message) {
         super(message, t);
         if (message != null && t != null && message.equals(t.getMessage())) {
-            setCode(code, t);
+            this.code = resolveCode(code, t);
         } else {
-            setCode(code.toString());
+            this.code = code.toString();
         }
     }
 
     public KublingException(BundleUtil.Event code, Throwable t) {
         super(t);
-        setCode(code, t);
+        this.code = resolveCode(code, t);
     }
 
-    private void setCode(BundleUtil.Event code, Throwable t) {
+    private static String resolveCode(BundleUtil.Event code, Throwable t) {
         String codeStr = code.toString();
         if (t instanceof KublingException te) {
             if (te.getCode() != null) {
                 codeStr = te.getCode();
             }
         }
-        setCode(codeStr);
+        return codeStr;
     }
 
     public KublingException(Throwable e) {
@@ -80,7 +80,7 @@ public class KublingException extends Exception {
 
     public KublingException(Throwable e, String message) {
         super(message, e);
-        setCode(getCode(e));
+        this.code = getCode(e);
     }
 
     public String getCode() {

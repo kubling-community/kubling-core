@@ -22,9 +22,14 @@
 
 package com.kubling.core.types;
 
+import java.io.Serial;
 import java.sql.Blob;
 
 public final class GeometryType extends AbstractGeospatialType {
+
+    @Serial
+    private static final long serialVersionUID = 6864882087853041423L;
+
     public static final int UNKNOWN_SRID = 0;
 
     public GeometryType() {

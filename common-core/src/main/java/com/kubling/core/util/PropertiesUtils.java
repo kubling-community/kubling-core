@@ -385,7 +385,7 @@ public final class PropertiesUtils {
      * Search for the property first in the environment, then in the system properties
      */
     public static <T> T getHierarchicalProperty(String key, T defaultValue, Class<T> clazz) {
-        Map sysProps = System.getProperties();
+        Map<?, ?> sysProps = System.getProperties();
         Map<String, String> env = System.getenv();
         String stringVal = getValue(key, sysProps, env);
         if (stringVal != null) {
@@ -397,7 +397,7 @@ public final class PropertiesUtils {
         return defaultValue;
     }
 
-    static String getValue(String key, Map sysProps,
+    static String getValue(String key, Map<?, ?> sysProps,
                            Map<String, String> env) {
         Object val = sysProps.get(key);
         String stringVal;

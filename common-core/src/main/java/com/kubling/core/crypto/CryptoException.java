@@ -25,11 +25,16 @@ package com.kubling.core.crypto;
 import com.kubling.core.BundleUtil;
 import com.kubling.core.KublingException;
 
+import java.io.Serial;
+
 /**
  * A catch-all exception for any exceptions related to encryption and decryption
  * operations.
  */
 public class CryptoException extends KublingException {
+
+    @Serial
+    private static final long serialVersionUID = -4596425569745339598L;
 
     /**
      * No-Arg Constructor

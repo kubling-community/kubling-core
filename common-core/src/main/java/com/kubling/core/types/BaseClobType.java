@@ -144,7 +144,6 @@ public class BaseClobType extends Streamable<Clob> implements NClob, Sequencable
                 writer.write((char) c);
                 c = reader.read();
             }
-            reader.close();
             String data = writer.toString();
             writer.close();
             return data;

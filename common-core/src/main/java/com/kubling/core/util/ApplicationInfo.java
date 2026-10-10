@@ -27,11 +27,15 @@ import com.kubling.core.KublingRuntimeException;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.Properties;
 
 
 public final class ApplicationInfo implements Serializable {
+
+    @Serial
+    private static final long serialVersionUID = -4723658681834168137L;
 
     public static final String APPLICATION_PRODUCT_INFORMATION = "Product Information";
 

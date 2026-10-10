@@ -52,6 +52,9 @@ import java.sql.SQLXML;
  */
 public class SQLXMLImpl extends BaseLob implements SQLXML {
 
+    @Serial
+    private static final long serialVersionUID = 1725951583381521004L;
+
     public SQLXMLImpl() {
 
     }
@@ -75,8 +78,7 @@ public class SQLXMLImpl extends BaseLob implements SQLXML {
             public long getLength() {
                 return bytes.length;
             }
-        });
-        setEncoding(Streamable.ENCODING);
+        }, Streamable.CHARSET);
     }
 
     public SQLXMLImpl(final String str) {

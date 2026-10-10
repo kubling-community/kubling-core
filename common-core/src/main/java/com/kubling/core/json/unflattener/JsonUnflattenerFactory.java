@@ -24,10 +24,9 @@ import com.github.wnameless.json.base.JsonCore;
 import java.io.IOException;
 import java.io.Reader;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
-
-import static org.apache.commons.lang3.Validate.notNull;
 
 /**
  * {@link JsonUnflattenerFactory} preserves the configuration of a {@link JsonUnflattener}, in doing
@@ -48,7 +47,7 @@ public final class JsonUnflattenerFactory {
      *                   {@link JsonUnflattener}.
      */
     public JsonUnflattenerFactory(Consumer<JsonUnflattener> configurer) {
-        this.configurer = notNull(configurer);
+        this.configurer = Objects.requireNonNull(configurer, "The validated object is null");
         this.jsonCore = Optional.empty();
     }
 
@@ -60,7 +59,7 @@ public final class JsonUnflattenerFactory {
      * @param jsonCore   a {@link JsonCore}
      */
     public JsonUnflattenerFactory(Consumer<JsonUnflattener> configurer, JsonCore<?> jsonCore) {
-        this.configurer = notNull(configurer);
+        this.configurer = Objects.requireNonNull(configurer, "The validated object is null");
         this.jsonCore = Optional.of(jsonCore);
     }
 

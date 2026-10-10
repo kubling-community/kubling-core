@@ -63,11 +63,17 @@ public abstract class NumberToNumberTransform extends Transform {
 
     protected void checkValueRange(Object value)
             throws TransformationException {
-        if (((Comparable)value).compareTo(min) < 0 || ((Comparable)value).compareTo(max) > 0) {
+        Comparable<?> comparable = (Comparable<?>) value;
+        if (compare(comparable, min) < 0 || compare(comparable, max) > 0) {
               throw new TransformationException(CorePlugin.Event.KBL10058,
                       CorePlugin.Util.gs(CorePlugin.Event.KBL10058, value, getSourceType().getSimpleName(),
                               getTargetType().getSimpleName()));
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    static int compare(Comparable<?> left, Object right) {
+        return ((Comparable<Object>) left).compareTo(right);
     }
 
 }

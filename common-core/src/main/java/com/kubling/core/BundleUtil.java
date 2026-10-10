@@ -153,7 +153,7 @@ public class BundleUtil {
      * </code> if the <code>key</code> is null.
      */
     public String getString(final String key,
-                            final List parameters) {
+                            final List<?> parameters) {
         if (parameters == null) {
             return getString(key);
         }

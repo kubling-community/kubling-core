@@ -42,7 +42,7 @@ public abstract class AbstractGeospatialType extends BlobType {
     private static final long serialVersionUID = -7977104607250137916L;
 
     private int srid;
-    private Reference<?> geoCache;
+    private transient Reference<?> geoCache;
 
     public AbstractGeospatialType() {
 

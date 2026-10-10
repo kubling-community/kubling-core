@@ -78,8 +78,8 @@ public class BasicCryptor implements Cryptor {
             randBuffer = new byte[iv.getIV().length];
         }
 
-        initEncryptCipher();
-        initDecryptCipher();
+        initializeEncryptCipher();
+        initializeDecryptCipher();
     }
 
     public synchronized void setUseSealedObject(boolean useSealedObject) {
@@ -120,6 +120,10 @@ public class BasicCryptor implements Cryptor {
      * appropriate key to be used in the encryption or decryption operation.
      */
     protected void initDecryptCipher() throws CryptoException {
+        initializeDecryptCipher();
+    }
+
+    private void initializeDecryptCipher() throws CryptoException {
 
         // Create and initialize decryption cipher
         try {
@@ -225,6 +229,10 @@ public class BasicCryptor implements Cryptor {
      * be used in the encryption operation.
      */
     protected void initEncryptCipher() throws CryptoException {
+        initializeEncryptCipher();
+    }
+
+    private void initializeEncryptCipher() throws CryptoException {
 
         // Create and initialize encryption cipher
         try {

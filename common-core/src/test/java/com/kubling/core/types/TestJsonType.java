@@ -47,6 +47,7 @@ public class TestJsonType {
         JsonType jt = new JsonType(new ClobImpl(json));
 
         jt.setReferenceStreamId(null);
+        assertEquals("{\"a\":1,\"z\":9}", jt.toString());
 
         JsonType read = UnitTestUtil.helpSerialize(jt);
 

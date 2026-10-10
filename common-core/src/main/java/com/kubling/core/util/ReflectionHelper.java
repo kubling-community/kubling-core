@@ -77,7 +77,7 @@ public class ReflectionHelper {
         }
 
         if (arguments == null) {
-            return findBestMethodWithSignature(methodName, Collections.EMPTY_LIST);
+            return findBestMethodWithSignature(methodName, Collections.emptyList());
         }
         int size = arguments.length;
         List<Class<?>> argumentClasses = new ArrayList<>(size);
@@ -108,7 +108,10 @@ public class ReflectionHelper {
      */
     public Method findBestMethodWithSignature(String methodName, Object[] argumentsClasses)
             throws NoSuchMethodException, SecurityException {
-        List argumentClassesList = Arrays.asList(argumentsClasses);
+        List<Class<?>> argumentClassesList = new ArrayList<>(argumentsClasses.length);
+        for (Object argumentClass : argumentsClasses) {
+            argumentClassesList.add((Class<?>) argumentClass);
+        }
         return findBestMethodWithSignature(methodName, argumentClassesList);
     }
 
@@ -130,7 +133,7 @@ public class ReflectionHelper {
             throws NoSuchMethodException, SecurityException {
         // Attempt to find the method
         Method result = null;
-        Class[] classArgs = new Class[argumentsClasses.size()];
+        Class<?>[] classArgs = new Class<?>[argumentsClasses.size()];
 
         // -------------------------------------------------------------------------------
         // First try to find the method with EXACTLY the argument classes as specified ...
@@ -155,7 +158,7 @@ public class ReflectionHelper {
             throw new NoSuchMethodException(methodName);
         }
         for (Method method : methodsWithSameName) {
-            Class[] args = method.getParameterTypes();
+            Class<?>[] args = method.getParameterTypes();
             boolean allMatch = argsMatch(argumentsClasses, args);
             if (allMatch) {
                 if (result != null) {
@@ -190,7 +193,7 @@ public class ReflectionHelper {
         }
     }
 
-    private static boolean argsMatch(List<Class<?>> argumentsClasses, Class[] args) {
+    private static boolean argsMatch(List<Class<?>> argumentsClasses, Class<?>[] args) {
         if (args.length != argumentsClasses.size()) {
             return false;
         }
@@ -273,7 +276,7 @@ public class ReflectionHelper {
                                 final ClassLoader classLoader) throws KublingException {
         try {
             int size = (ctorObjs == null ? 0 : ctorObjs.size());
-            Class[] names = new Class[size];
+            Class<?>[] names = new Class<?>[size];
             Object[] objArray = new Object[size];
             int i = 0;
 

@@ -7,6 +7,7 @@ package com.kubling.core.json.flattener;
 import com.github.wnameless.json.base.JacksonJsonCore;
 import com.github.wnameless.json.base.JsonCore;
 import com.github.wnameless.json.base.JsonValueBase;
+import org.apache.commons.lang3.Strings;
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.IOException;
@@ -20,7 +21,6 @@ import java.util.regex.Pattern;
 
 import static java.util.Collections.EMPTY_MAP;
 import static org.apache.commons.lang3.Validate.isTrue;
-import static org.apache.commons.lang3.Validate.notNull;
 
 /**
  * {@link JsonFlattener} flattens any JSON nested objects or arrays into a flattened JSON string or
@@ -131,7 +131,7 @@ public final class JsonFlattener {
      */
     public JsonFlattener(JsonValueBase<?> json) {
         jsonCore = new JacksonJsonCore();
-        source = notNull(json);
+        source = Objects.requireNonNull(json, "The validated object is null");
     }
 
     /**
@@ -141,7 +141,7 @@ public final class JsonFlattener {
      * @param json     a JSON string
      */
     public JsonFlattener(JsonCore<?> jsonCore, JsonValueBase<?> json) {
-        this.jsonCore = notNull(jsonCore);
+        this.jsonCore = Objects.requireNonNull(jsonCore, "The validated object is null");
         source = jsonCore.parse(json.toJson());
     }
 
@@ -162,7 +162,7 @@ public final class JsonFlattener {
      * @param json     a JSON string
      */
     public JsonFlattener(JsonCore<?> jsonCore, String json) {
-        this.jsonCore = notNull(jsonCore);
+        this.jsonCore = Objects.requireNonNull(jsonCore, "The validated object is null");
         source = jsonCore.parse(json);
     }
 
@@ -185,7 +185,7 @@ public final class JsonFlattener {
      * @throws IOException if the jsonReader cannot be read
      */
     public JsonFlattener(JsonCore<?> jsonCore, Reader jsonReader) throws IOException {
-        this.jsonCore = notNull(jsonCore);
+        this.jsonCore = Objects.requireNonNull(jsonCore, "The validated object is null");
         source = jsonCore.parse(jsonReader);
     }
 
@@ -196,7 +196,7 @@ public final class JsonFlattener {
      * @return this {@link JsonFlattener}
      */
     public JsonFlattener withFlattenMode(FlattenMode flattenMode) {
-        this.flattenMode = notNull(flattenMode);
+        this.flattenMode = Objects.requireNonNull(flattenMode, "The validated object is null");
         flattenedMap = null;
         return this;
     }
@@ -208,7 +208,7 @@ public final class JsonFlattener {
      * @return this {@link JsonFlattener}
      */
     public JsonFlattener withStringEscapePolicy(CharSequenceTranslatorFactory policy) {
-        this.policy = notNull(policy);
+        this.policy = Objects.requireNonNull(policy, "The validated object is null");
         flattenedMap = null;
         return this;
     }
@@ -267,7 +267,7 @@ public final class JsonFlattener {
      * @return this {@link JsonFlattener}
      */
     public JsonFlattener withPrintMode(PrintMode printMode) {
-        this.printMode = notNull(printMode);
+        this.printMode = Objects.requireNonNull(printMode, "The validated object is null");
         return this;
     }
 
@@ -439,11 +439,11 @@ public final class JsonFlattener {
     }
 
     private boolean hasReservedCharacters(String key) {
-        if (flattenMode.equals(FlattenMode.MONGODB) && StringUtils.containsAny(key, separator))
+        if (flattenMode.equals(FlattenMode.MONGODB) && Strings.CS.containsAny(key, separator))
             throw new IllegalArgumentException(
                     "Key cannot contain separator(" + separator + ") in FlattenMode." + FlattenMode.MONGODB);
 
-        return (StringUtils.contains(key, separator) || StringUtils.containsAny(key, leftBracket, rightBracket));
+        return (Strings.CS.contains(key, separator) || StringUtils.containsAny(key, leftBracket, rightBracket));
     }
 
     private String computeKey() {

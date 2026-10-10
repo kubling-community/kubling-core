@@ -35,9 +35,9 @@ public class ObjectToAnyTransform extends Transform {
 
     public static final ObjectToAnyTransform INSTANCE = new ObjectToAnyTransform(Object.class);
 
-    private final Class targetClass;
+    private final Class<?> targetClass;
 
-    public ObjectToAnyTransform(Class targetClass) {
+    public ObjectToAnyTransform(Class<?> targetClass) {
         this.targetClass = targetClass;
     }
 
@@ -46,11 +46,11 @@ public class ObjectToAnyTransform extends Transform {
      *
      * @return Source type
      */
-    public Class getSourceType() {
+    public Class<?> getSourceType() {
         return DataTypeManager.DefaultDataClasses.OBJECT;
     }
 
-    public Class getTargetType() {
+    public Class<?> getTargetType() {
         return targetClass;
     }
 

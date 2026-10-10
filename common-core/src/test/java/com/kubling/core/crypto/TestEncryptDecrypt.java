@@ -25,10 +25,11 @@ package com.kubling.core.crypto;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import javax.crypto.SecretKey;
 import java.io.*;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -146,7 +147,8 @@ public class TestEncryptDecrypt {
 
         SymmetricCryptor randomSymCryptor = SymmetricCryptor.getSymmectricCryptor(true);
 
-        ArrayList test = new ArrayList(Arrays.asList(new String[]{ALPHA_L, ALPHA_U, CLEARTEXT, NUMBERS}));
+        ArrayList<String> test = new ArrayList<>(
+                List.of(ALPHA_L, ALPHA_U, CLEARTEXT, NUMBERS));
 
         Object result = randomSymCryptor.sealObject(test);
 
@@ -159,15 +161,48 @@ public class TestEncryptDecrypt {
         ObjectInputStream ois = new ObjectInputStream(bais);
         result = ois.readObject();
 
-        ArrayList clearObject = (ArrayList) randomSymCryptor.unsealObject(result);
+        Object clearObject = randomSymCryptor.unsealObject(result);
 
         assertEquals(test, clearObject);
 
         SymmetricCryptor cryptor1 = SymmetricCryptor.getSymmectricCryptor(randomSymCryptor.getEncodedKey(), true);
 
-        clearObject = (ArrayList) cryptor1.unsealObject(result);
+        clearObject = cryptor1.unsealObject(result);
 
         assertEquals(test, clearObject);
+    }
+
+    @Test
+    public void testConstructorDoesNotInvokeOverridableCipherInitializers() throws Exception {
+        TrackingCryptor trackingCryptor = new TrackingCryptor(SymmetricCryptor.generateKey());
+
+        assertFalse(trackingCryptor.encryptInitializerInvoked);
+        assertFalse(trackingCryptor.decryptInitializerInvoked);
+
+        byte[] cleartext = CLEARTEXT.getBytes(Charset.forName("UTF-8"));
+        assertArrayEquals(cleartext, trackingCryptor.decrypt(trackingCryptor.encrypt(cleartext)));
+    }
+
+    private static final class TrackingCryptor extends BasicCryptor {
+
+        private boolean encryptInitializerInvoked;
+        private boolean decryptInitializerInvoked;
+
+        private TrackingCryptor(SecretKey key) throws CryptoException {
+            super(key, key, SymmetricCryptor.ECB_SYM_ALGORITHM, null);
+        }
+
+        @Override
+        protected void initEncryptCipher() throws CryptoException {
+            encryptInitializerInvoked = true;
+            super.initEncryptCipher();
+        }
+
+        @Override
+        protected void initDecryptCipher() throws CryptoException {
+            decryptInitializerInvoked = true;
+            super.initDecryptCipher();
+        }
     }
 
 }

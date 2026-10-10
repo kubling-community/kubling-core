@@ -22,6 +22,7 @@
 
 package com.kubling.core.util;
 
+import java.io.Serial;
 import java.util.LinkedHashMap;
 import java.util.Map.Entry;
 
@@ -29,6 +30,9 @@ import java.util.Map.Entry;
  * This class replaces a verbose legacy implementation of LRUCaching.
  */
 public class LRUCache<K, V> extends LinkedHashMap<K, V> {
+
+    @Serial
+    private static final long serialVersionUID = -8487873564252233036L;
 
     /**
      * Default amount of space in the cache
