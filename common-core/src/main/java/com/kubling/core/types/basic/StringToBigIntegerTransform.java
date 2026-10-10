@@ -54,7 +54,7 @@ public class StringToBigIntegerTransform extends Transform {
      *
      * @return Source type
      */
-    public Class getSourceType() {
+    public Class<?> getSourceType() {
         return String.class;
     }
 
@@ -63,7 +63,7 @@ public class StringToBigIntegerTransform extends Transform {
      *
      * @return Target type
      */
-    public Class getTargetType() {
+    public Class<?> getTargetType() {
         return BigInteger.class;
     }
 

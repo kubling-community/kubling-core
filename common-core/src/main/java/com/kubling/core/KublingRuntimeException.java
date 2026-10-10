@@ -75,20 +75,17 @@ public class KublingRuntimeException extends RuntimeException {
 
     KublingRuntimeException(final String code, final String message) {
         super(message);
-        // The following setCode call should be executed after setting the message
-        setCode(code);
+        this.code = code;
     }
 
     public KublingRuntimeException(BundleUtil.Event code, final String message) {
         super(message);
-        // The following setCode call should be executed after setting the message
-        setCode(code.toString());
+        this.code = code.toString();
     }
 
     public KublingRuntimeException(BundleUtil.Event code, final Throwable t) {
         super(t);
-        // The following setCode call should be executed after setting the message
-        setCode(code.toString());
+        this.code = code.toString();
     }
 
     /**
@@ -101,7 +98,7 @@ public class KublingRuntimeException extends RuntimeException {
         super((e instanceof java.lang.reflect.InvocationTargetException)
                 ? ((java.lang.reflect.InvocationTargetException) e).getTargetException().getMessage()
                 : (e == null ? null : e.getMessage()), e);
-        setCode(KublingException.getCode(e));
+        this.code = KublingException.getCode(e);
     }
 
     /**
@@ -115,8 +112,7 @@ public class KublingRuntimeException extends RuntimeException {
      */
     public KublingRuntimeException(BundleUtil.Event event, final Throwable e, final String message) {
         super(message, e);
-        // Overwrite code set in other ctor from exception.
-        setCode(event.toString());
+        this.code = event.toString();
     }
 
 

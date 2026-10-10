@@ -24,10 +24,9 @@ import com.github.wnameless.json.base.JsonValueBase;
 
 import java.io.IOException;
 import java.io.Reader;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
-
-import static org.apache.commons.lang3.Validate.notNull;
 
 /**
  * {@link JsonFlattenerFactory} preserves the configuration of a {@link JsonFlattener}, in doing so,
@@ -48,7 +47,7 @@ public final class JsonFlattenerFactory {
      *                   {@link JsonFlattener}.
      */
     public JsonFlattenerFactory(Consumer<JsonFlattener> configurer) {
-        this.configurer = notNull(configurer);
+        this.configurer = Objects.requireNonNull(configurer, "The validated object is null");
         this.jsonCore = Optional.empty();
     }
 
@@ -60,7 +59,7 @@ public final class JsonFlattenerFactory {
      * @param jsonCore   a {@link JsonCore}
      */
     public JsonFlattenerFactory(Consumer<JsonFlattener> configurer, JsonCore<?> jsonCore) {
-        this.configurer = notNull(configurer);
+        this.configurer = Objects.requireNonNull(configurer, "The validated object is null");
         this.jsonCore = Optional.of(jsonCore);
     }
 

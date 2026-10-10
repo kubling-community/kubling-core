@@ -42,7 +42,7 @@ public class TestReflectionHelper {
     // =========================================================================
 
     /**
-     * Verify the Class[] arrays compare equal element for element.
+     * Verify the Class<?>[] arrays compare equal element for element.
      *
      * @param msg             msg to display
      * @param signatureSought
@@ -50,8 +50,8 @@ public class TestReflectionHelper {
      * @since 4.4
      */
     private void helpAssertSameMethodSignature(String msg,
-                                               Class[] signatureSought,
-                                               Class[] signatureFound) {
+                                               Class<?>[] signatureSought,
+                                               Class<?>[] signatureFound) {
         assertEquals(signatureSought.length, signatureFound.length, msg + ": sizes differ.");
         for (int i = 0; i < signatureSought.length; ++i) {
             assertEquals(signatureSought[i], signatureFound[i], msg + " for argument # " + (i + 1));
@@ -84,12 +84,12 @@ public class TestReflectionHelper {
     @Test
     public void testFindBestMethodWithSignature_String() throws Exception {
         ReflectionHelper helper = new ReflectionHelper(FakeInterface.class);
-        Class[] signatureSought = new Class[]{String.class};
+        Class<?>[] signatureSought = new Class<?>[]{String.class};
         Method theMethod = helper.findBestMethodWithSignature("method", signatureSought);
         assertNotNull(theMethod, "Failed to find method for args: " + Arrays.toString(signatureSought));
 
         // make sure we got the method we expected
-        Class[] signatureFound = theMethod.getParameterTypes();
+        Class<?>[] signatureFound = theMethod.getParameterTypes();
         assertEquals(theMethod.getDeclaringClass().getName(), FakeInterface.class.getName());
         helpAssertSameMethodSignature("Found wrong method signature", signatureSought, signatureFound);
     }
@@ -97,13 +97,13 @@ public class TestReflectionHelper {
     @Test
     public void testFindBestMethodWithSignature_Serializable() throws Exception {
         ReflectionHelper helper = new ReflectionHelper(FakeInterface.class);
-        Class[] signatureSought = new Class[]{Serializable.class};
+        Class<?>[] signatureSought = new Class<?>[]{Serializable.class};
         Method theMethod = helper.findBestMethodWithSignature("method", signatureSought);
         assertNotNull(theMethod, "Failed to find method for args: " + Arrays.toString(signatureSought));
 
         // make sure we got the method we expected
-        Class[] signatureFound = theMethod.getParameterTypes();
-        Class[] signatureExpected = new Class[]{Serializable.class};
+        Class<?>[] signatureFound = theMethod.getParameterTypes();
+        Class<?>[] signatureExpected = new Class<?>[]{Serializable.class};
         assertEquals(theMethod.getDeclaringClass().getName(), FakeInterface.class.getName());
         helpAssertSameMethodSignature("Found wrong method signature", signatureExpected, signatureFound);
     }
@@ -111,7 +111,7 @@ public class TestReflectionHelper {
     @Test
     public void testFindBestMethodWithSignature_Object() {
         ReflectionHelper helper = new ReflectionHelper(FakeInterface.class);
-        Class[] signatureSought = new Class[]{NullPointerException.class};
+        Class<?>[] signatureSought = new Class<?>[]{NullPointerException.class};
         try {
             helper.findBestMethodWithSignature("method", signatureSought);
             fail("exception expected");
@@ -123,12 +123,12 @@ public class TestReflectionHelper {
     @Test
     public void testFindBestMethodWithSignature_StringArray() throws Exception {
         ReflectionHelper helper = new ReflectionHelper(FakeInterface.class);
-        Class[] signatureSought = new Class[]{String[].class};
+        Class<?>[] signatureSought = new Class<?>[]{String[].class};
         Method theMethod = helper.findBestMethodWithSignature("method", signatureSought);
         assertNotNull(theMethod, "Failed to find method for args: " + Arrays.toString(signatureSought));
 
         // make sure we got the method we expected
-        Class[] signatureFound = theMethod.getParameterTypes();
+        Class<?>[] signatureFound = theMethod.getParameterTypes();
         assertEquals(theMethod.getDeclaringClass().getName(), FakeInterface.class.getName());
         helpAssertSameMethodSignature("Found wrong method signature", signatureSought, signatureFound);
     }
@@ -136,12 +136,12 @@ public class TestReflectionHelper {
     @Test
     public void testFindBestMethodWithSignature_Integer() throws Exception {
         ReflectionHelper helper = new ReflectionHelper(FakeInterface.class);
-        Class[] signatureSought = new Class[]{Integer.class};
+        Class<?>[] signatureSought = new Class<?>[]{Integer.class};
         Method theMethod = helper.findBestMethodWithSignature("method", signatureSought);
         assertNotNull(theMethod, "Failed to find method for args: " + Arrays.toString(signatureSought));
 
         // make sure we got the method we expected
-        Class[] signatureFound = theMethod.getParameterTypes();
+        Class<?>[] signatureFound = theMethod.getParameterTypes();
         assertEquals(theMethod.getDeclaringClass().getName(), FakeInterface.class.getName());
         helpAssertSameMethodSignature("Found wrong method signature", signatureSought, signatureFound);
     }
@@ -149,12 +149,12 @@ public class TestReflectionHelper {
     @Test
     public void testFindBestMethodWithSignature_long() throws Exception {
         ReflectionHelper helper = new ReflectionHelper(FakeInterface.class);
-        Class[] signatureSought = new Class[]{Long.TYPE};
+        Class<?>[] signatureSought = new Class<?>[]{Long.TYPE};
         Method theMethod = helper.findBestMethodWithSignature("method", signatureSought);
         assertNotNull(theMethod, "Failed to find method for args: " + Arrays.toString(signatureSought));
 
         // make sure we got the method we expected
-        Class[] signatureFound = theMethod.getParameterTypes();
+        Class<?>[] signatureFound = theMethod.getParameterTypes();
         assertEquals(theMethod.getDeclaringClass().getName(), FakeInterface.class.getName(), "Wrong class");
         helpAssertSameMethodSignature("Found wrong method signature", signatureSought, signatureFound);
     }
@@ -162,13 +162,13 @@ public class TestReflectionHelper {
     @Test
     public void testFindBestMethodWithSignature_2ArgSerializableAndNumber() throws Exception {
         ReflectionHelper helper = new ReflectionHelper(FakeInterface.class);
-        Class[] signatureSought = new Class[]{Integer.class, Integer.class};
+        Class<?>[] signatureSought = new Class<?>[]{Integer.class, Integer.class};
         Method theMethod = helper.findBestMethodWithSignature("method", signatureSought);
         assertNotNull(theMethod, "Failed to find method for args: " + Arrays.toString(signatureSought));
 
         // make sure we got the method we expected
-        Class[] signatureFound = theMethod.getParameterTypes();
-        Class[] signatureExpected = new Class[]{Serializable.class, Number.class};
+        Class<?>[] signatureFound = theMethod.getParameterTypes();
+        Class<?>[] signatureExpected = new Class<?>[]{Serializable.class, Number.class};
         assertEquals(theMethod.getDeclaringClass().getName(), FakeInterface.class.getName());
         helpAssertSameMethodSignature("Found wrong method signature", signatureExpected, signatureFound);
     }
@@ -179,12 +179,12 @@ public class TestReflectionHelper {
     @Test
     public void testFindBestMethodWithSignature_StringAndMethodName() throws Exception {
         ReflectionHelper helper = new ReflectionHelper(FakeInterface.class);
-        Class[] signatureSought = new Class[]{String.class};
+        Class<?>[] signatureSought = new Class<?>[]{String.class};
         Method theMethod = helper.findBestMethodWithSignature("methodString", signatureSought);
         assertNotNull(theMethod, "Failed to find method for args: " + Arrays.toString(signatureSought));
 
         // make sure we got the method we expected
-        Class[] signatureFound = theMethod.getParameterTypes();
+        Class<?>[] signatureFound = theMethod.getParameterTypes();
         assertEquals(theMethod.getDeclaringClass().getName(), FakeInterface.class.getName());
         helpAssertSameMethodSignature("Found wrong method signature", signatureSought, signatureFound);
     }
@@ -192,13 +192,13 @@ public class TestReflectionHelper {
     @Test
     public void testFindBestMethodWithSignature_ObjectAndMethodName() throws Exception {
         ReflectionHelper helper = new ReflectionHelper(FakeInterface.class);
-        Class[] signatureSought = new Class[]{NullPointerException.class};
+        Class<?>[] signatureSought = new Class<?>[]{NullPointerException.class};
         Method theMethod = helper.findBestMethodWithSignature("methodObject", signatureSought);
         assertNotNull(theMethod, "Failed to find method for args: " + Arrays.toString(signatureSought));
 
         // make sure we got the method we expected
-        Class[] signatureFound = theMethod.getParameterTypes();
-        Class[] signatureExpected = new Class[]{Object.class};
+        Class<?>[] signatureFound = theMethod.getParameterTypes();
+        Class<?>[] signatureExpected = new Class<?>[]{Object.class};
         assertEquals(theMethod.getDeclaringClass().getName(), FakeInterface.class.getName());
         helpAssertSameMethodSignature("Found wrong method signature", signatureExpected, signatureFound);
     }
@@ -206,13 +206,13 @@ public class TestReflectionHelper {
     @Test
     public void testFindBestMethodWithSignature_SerializableAndMethodName() throws Exception {
         ReflectionHelper helper = new ReflectionHelper(FakeInterface.class);
-        Class[] signatureSought = new Class[]{NullPointerException.class};
+        Class<?>[] signatureSought = new Class<?>[]{NullPointerException.class};
         Method theMethod = helper.findBestMethodWithSignature("methodSerializable", signatureSought);
         assertNotNull(theMethod, "Failed to find method for args: " + Arrays.toString(signatureSought));
 
         // make sure we got the method we expected
-        Class[] signatureFound = theMethod.getParameterTypes();
-        Class[] signatureExpected = new Class[]{Serializable.class};
+        Class<?>[] signatureFound = theMethod.getParameterTypes();
+        Class<?>[] signatureExpected = new Class<?>[]{Serializable.class};
         assertEquals(theMethod.getDeclaringClass().getName(), FakeInterface.class.getName());
         helpAssertSameMethodSignature("Found wrong method signature", signatureExpected, signatureFound);
     }
@@ -220,13 +220,13 @@ public class TestReflectionHelper {
     @Test
     public void testFindBestMethodWithSignature_ObjectSerializableAndMethodName() throws Exception {
         ReflectionHelper helper = new ReflectionHelper(FakeInterface.class);
-        Class[] signatureSought = new Class[]{NullPointerException.class};
+        Class<?>[] signatureSought = new Class<?>[]{NullPointerException.class};
         Method theMethod = helper.findBestMethodWithSignature("methodSerializable", signatureSought);
         assertNotNull(theMethod, "Failed to find method for args: " + Arrays.toString(signatureSought));
 
         // make sure we got the method we expected
-        Class[] signatureFound = theMethod.getParameterTypes();
-        Class[] signatureExpected = new Class[]{Serializable.class};
+        Class<?>[] signatureFound = theMethod.getParameterTypes();
+        Class<?>[] signatureExpected = new Class<?>[]{Serializable.class};
         assertEquals(theMethod.getDeclaringClass().getName(), FakeInterface.class.getName());
         helpAssertSameMethodSignature("Found wrong method signature", signatureExpected, signatureFound);
     }
@@ -234,13 +234,13 @@ public class TestReflectionHelper {
     @Test
     public void testFindBestMethodWithSignature_IntegerSerializableAndMethodName() throws Exception {
         ReflectionHelper helper = new ReflectionHelper(FakeInterface.class);
-        Class[] signatureSought = new Class[]{Integer.class};
+        Class<?>[] signatureSought = new Class<?>[]{Integer.class};
         Method theMethod = helper.findBestMethodWithSignature("methodSerializable", signatureSought);
         assertNotNull(theMethod, "Failed to find method for args: " + Arrays.toString(signatureSought));
 
         // make sure we got the method we expected
-        Class[] signatureFound = theMethod.getParameterTypes();
-        Class[] signatureExpected = new Class[]{Serializable.class};
+        Class<?>[] signatureFound = theMethod.getParameterTypes();
+        Class<?>[] signatureExpected = new Class<?>[]{Serializable.class};
         assertEquals(theMethod.getDeclaringClass().getName(), FakeInterface.class.getName());
         helpAssertSameMethodSignature("Found wrong method signature", signatureExpected, signatureFound);
     }
@@ -248,12 +248,12 @@ public class TestReflectionHelper {
     @Test
     public void testFindBestMethodWithSignature_StringArrayAndMethodName() throws Exception {
         ReflectionHelper helper = new ReflectionHelper(FakeInterface.class);
-        Class[] signatureSought = new Class[]{String[].class};
+        Class<?>[] signatureSought = new Class<?>[]{String[].class};
         Method theMethod = helper.findBestMethodWithSignature("methodStringArray", signatureSought);
         assertNotNull(theMethod, "Failed to find method for args: " + Arrays.toString(signatureSought));
 
         // make sure we got the method we expected
-        Class[] signatureFound = theMethod.getParameterTypes();
+        Class<?>[] signatureFound = theMethod.getParameterTypes();
         assertEquals(theMethod.getDeclaringClass().getName(), FakeInterface.class.getName());
         helpAssertSameMethodSignature("Found wrong method signature", signatureSought, signatureFound);
     }
@@ -261,13 +261,13 @@ public class TestReflectionHelper {
     @Test
     public void testFindBestMethodWithSignature_ListAndMethodName() throws Exception {
         ReflectionHelper helper = new ReflectionHelper(FakeInterface.class);
-        Class[] signatureSought = new Class[]{ArrayList.class};
+        Class<?>[] signatureSought = new Class<?>[]{ArrayList.class};
         Method theMethod = helper.findBestMethodWithSignature("methodList", signatureSought);
         assertNotNull(theMethod, "Failed to find method for args: " + Arrays.toString(signatureSought));
 
         // make sure we got the method we expected
-        Class[] signatureFound = theMethod.getParameterTypes();
-        Class[] signatureExpected = new Class[]{List.class};
+        Class<?>[] signatureFound = theMethod.getParameterTypes();
+        Class<?>[] signatureExpected = new Class<?>[]{List.class};
         assertEquals(theMethod.getDeclaringClass().getName(), FakeInterface.class.getName());
         helpAssertSameMethodSignature("Found wrong method signature", signatureExpected, signatureFound);
     }
@@ -275,12 +275,12 @@ public class TestReflectionHelper {
     @Test
     public void testFindBestMethodWithSignature_IntegerAndMethodName() throws Exception {
         ReflectionHelper helper = new ReflectionHelper(FakeInterface.class);
-        Class[] signatureSought = new Class[]{Integer.class};
+        Class<?>[] signatureSought = new Class<?>[]{Integer.class};
         Method theMethod = helper.findBestMethodWithSignature("methodInteger", signatureSought);
         assertNotNull(theMethod, "Failed to find method for args: " + Arrays.toString(signatureSought));
 
         // make sure we got the method we expected
-        Class[] signatureFound = theMethod.getParameterTypes();
+        Class<?>[] signatureFound = theMethod.getParameterTypes();
         assertEquals(theMethod.getDeclaringClass().getName(), FakeInterface.class.getName());
         helpAssertSameMethodSignature("Found wrong method signature", signatureSought, signatureFound);
     }
@@ -288,13 +288,13 @@ public class TestReflectionHelper {
     @Test
     public void testFindBestMethodWithSignature_IntegerObjectAndMethodName() throws Exception {
         ReflectionHelper helper = new ReflectionHelper(FakeInterface.class);
-        Class[] signatureSought = new Class[]{Integer.class};
+        Class<?>[] signatureSought = new Class<?>[]{Integer.class};
         Method theMethod = helper.findBestMethodWithSignature("methodObject", signatureSought);
         assertNotNull(theMethod, "Failed to find method for args: " + Arrays.toString(signatureSought));
 
         // make sure we got the method we expected
-        Class[] signatureFound = theMethod.getParameterTypes();
-        Class[] signatureExpected = new Class[]{Object.class};
+        Class<?>[] signatureFound = theMethod.getParameterTypes();
+        Class<?>[] signatureExpected = new Class<?>[]{Object.class};
         assertEquals(theMethod.getDeclaringClass().getName(), FakeInterface.class.getName());
         helpAssertSameMethodSignature("Found wrong method signature", signatureExpected, signatureFound);
     }
@@ -302,13 +302,13 @@ public class TestReflectionHelper {
     @Test
     public void testFindBestMethodWithSignature_LongObjectAndMethodName() throws Exception {
         ReflectionHelper helper = new ReflectionHelper(FakeInterface.class);
-        Class[] signatureSought = new Class[]{Long.class};
+        Class<?>[] signatureSought = new Class<?>[]{Long.class};
         Method theMethod = helper.findBestMethodWithSignature("methodObject", signatureSought);
         assertNotNull(theMethod, "Failed to find method for args: " + Arrays.toString(signatureSought));
 
         // make sure we got the method we expected
-        Class[] signatureFound = theMethod.getParameterTypes();
-        Class[] signatureExpected = new Class[]{Object.class};
+        Class<?>[] signatureFound = theMethod.getParameterTypes();
+        Class<?>[] signatureExpected = new Class<?>[]{Object.class};
         assertEquals(theMethod.getDeclaringClass().getName(), FakeInterface.class.getName());
         helpAssertSameMethodSignature("Found wrong method signature", signatureExpected, signatureFound);
     }
@@ -316,12 +316,12 @@ public class TestReflectionHelper {
     @Test
     public void testFindBestMethodWithSignature_longAndMethodName() throws Exception {
         ReflectionHelper helper = new ReflectionHelper(FakeInterface.class);
-        Class[] signatureSought = new Class[]{Long.TYPE};
+        Class<?>[] signatureSought = new Class<?>[]{Long.TYPE};
         Method theMethod = helper.findBestMethodWithSignature("method_long", signatureSought);
         assertNotNull(theMethod, "Failed to find method for args: " + Arrays.toString(signatureSought));
 
         // make sure we got the method we expected
-        Class[] signatureFound = theMethod.getParameterTypes();
+        Class<?>[] signatureFound = theMethod.getParameterTypes();
         assertEquals(theMethod.getDeclaringClass().getName(), FakeInterface.class.getName());
         helpAssertSameMethodSignature("Found wrong method signature", signatureSought, signatureFound);
     }
@@ -332,13 +332,13 @@ public class TestReflectionHelper {
     @Test
     public void testFindBestMethodWithSignature_2ArgIntegerObjectAndMethodName() throws Exception {
         ReflectionHelper helper = new ReflectionHelper(FakeInterface.class);
-        Class[] signatureSought = new Class[]{Integer.class, Integer.class};
+        Class<?>[] signatureSought = new Class<?>[]{Integer.class, Integer.class};
         Method theMethod = helper.findBestMethodWithSignature("twoArgMethod_Object_Object", signatureSought);
         assertNotNull(theMethod, "Failed to find method for args: " + Arrays.toString(signatureSought));
 
         // make sure we got the method we expected
-        Class[] signatureFound = theMethod.getParameterTypes();
-        Class[] signatureExpected = new Class[]{Object.class, Object.class};
+        Class<?>[] signatureFound = theMethod.getParameterTypes();
+        Class<?>[] signatureExpected = new Class<?>[]{Object.class, Object.class};
         assertEquals(theMethod.getDeclaringClass().getName(), FakeInterface.class.getName());
         helpAssertSameMethodSignature("Found wrong method signature", signatureExpected, signatureFound);
     }
@@ -346,13 +346,13 @@ public class TestReflectionHelper {
     @Test
     public void testFindBestMethodWithSignature_2ArgLongObjectAndMethodName() throws Exception {
         ReflectionHelper helper = new ReflectionHelper(FakeInterface.class);
-        Class[] signatureSought = new Class[]{Long.class, Long.class};
+        Class<?>[] signatureSought = new Class<?>[]{Long.class, Long.class};
         Method theMethod = helper.findBestMethodWithSignature("twoArgMethod_Object_Object", signatureSought);
         assertNotNull(theMethod, "Failed to find method for args: " + Arrays.toString(signatureSought));
 
         // make sure we got the method we expected
-        Class[] signatureFound = theMethod.getParameterTypes();
-        Class[] signatureExpected = new Class[]{Object.class, Object.class};
+        Class<?>[] signatureFound = theMethod.getParameterTypes();
+        Class<?>[] signatureExpected = new Class<?>[]{Object.class, Object.class};
         assertEquals(theMethod.getDeclaringClass().getName(), FakeInterface.class.getName());
         helpAssertSameMethodSignature("Found wrong method signature", signatureExpected, signatureFound);
     }
@@ -360,13 +360,13 @@ public class TestReflectionHelper {
     @Test
     public void testFindBestMethodWithSignature_2ArgSerializableNumberAndMethodName() throws Exception {
         ReflectionHelper helper = new ReflectionHelper(FakeInterface.class);
-        Class[] signatureSought = new Class[]{Long.class, Long.class};
+        Class<?>[] signatureSought = new Class<?>[]{Long.class, Long.class};
         Method theMethod = helper.findBestMethodWithSignature("twoArgMethod_Serializable_Number", signatureSought);
         assertNotNull(theMethod, "Failed to find method for args: " + Arrays.toString(signatureSought));
 
         // make sure we got the method we expected
-        Class[] signatureFound = theMethod.getParameterTypes();
-        Class[] signatureExpected = new Class[]{Serializable.class, Number.class};
+        Class<?>[] signatureFound = theMethod.getParameterTypes();
+        Class<?>[] signatureExpected = new Class<?>[]{Serializable.class, Number.class};
         assertEquals(theMethod.getDeclaringClass().getName(), FakeInterface.class.getName());
         helpAssertSameMethodSignature("Found wrong method signature", signatureExpected, signatureFound);
     }
@@ -377,12 +377,12 @@ public class TestReflectionHelper {
     @Test
     public void testFindBestMethodWithSignature_SubInterface_2ArgSerializableAndNumber() throws Exception {
         ReflectionHelper helper = new ReflectionHelper(FakeSubInterface.class);
-        Class[] signatureSought = new Class[]{Serializable.class, Number.class};
+        Class<?>[] signatureSought = new Class<?>[]{Serializable.class, Number.class};
         Method theMethod = helper.findBestMethodWithSignature("method", signatureSought);
         assertNotNull(theMethod, "Failed to find method for args: " + Arrays.toString(signatureSought));
 
         // make sure we got the method we expected
-        Class[] signatureFound = theMethod.getParameterTypes();
+        Class<?>[] signatureFound = theMethod.getParameterTypes();
         assertEquals(theMethod.getDeclaringClass().getName(), FakeSubInterface.class.getName());
         helpAssertSameMethodSignature("Found wrong method signature", signatureSought, signatureFound);
     }
@@ -390,13 +390,13 @@ public class TestReflectionHelper {
     @Test
     public void testFindBestMethodWithSignature_SubInterface_2ArgSerializableAndLong() throws Exception {
         ReflectionHelper helper = new ReflectionHelper(FakeSubInterface.class);
-        Class[] signatureSought = new Class[]{Serializable.class, Long.class};
+        Class<?>[] signatureSought = new Class<?>[]{Serializable.class, Long.class};
         Method theMethod = helper.findBestMethodWithSignature("method", signatureSought);
         assertNotNull(theMethod, "Failed to find method for args: " + Arrays.toString(signatureSought));
 
         // make sure we got the method we expected
-        Class[] signatureFound = theMethod.getParameterTypes();
-        Class[] signatureExpected = new Class[]{Serializable.class, Long.class};
+        Class<?>[] signatureFound = theMethod.getParameterTypes();
+        Class<?>[] signatureExpected = new Class<?>[]{Serializable.class, Long.class};
         assertEquals(theMethod.getDeclaringClass().getName(), FakeSubInterface.class.getName());
         helpAssertSameMethodSignature("Found wrong method signature", signatureExpected, signatureFound);
     }
@@ -419,7 +419,7 @@ public class TestReflectionHelper {
 
         void method(String[] arg);
 
-        void method(List arg);
+        void method(List<?> arg);
 
         void method(Integer arg);
 
@@ -435,7 +435,7 @@ public class TestReflectionHelper {
 
         void methodStringArray(String[] arg);
 
-        void methodList(List arg);
+        void methodList(List<?> arg);
 
         void methodInteger(Integer arg);
 

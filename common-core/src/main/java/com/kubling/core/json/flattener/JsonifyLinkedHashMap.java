@@ -22,6 +22,9 @@ package com.kubling.core.json.flattener;
 import com.github.wnameless.json.base.JsonPrinter;
 import org.apache.commons.text.translate.CharSequenceTranslator;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.Serial;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -39,8 +42,14 @@ public class JsonifyLinkedHashMap<K, V> extends LinkedHashMap<K, V> {
 
     private static final long serialVersionUID = 1L;
 
-    private CharSequenceTranslator translator =
+    private transient CharSequenceTranslator translator =
             StringEscapePolicy.DEFAULT.getCharSequenceTranslator();
+
+    @Serial
+    private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+        in.defaultReadObject();
+        translator = StringEscapePolicy.DEFAULT.getCharSequenceTranslator();
+    }
 
     public JsonifyLinkedHashMap() {
     }

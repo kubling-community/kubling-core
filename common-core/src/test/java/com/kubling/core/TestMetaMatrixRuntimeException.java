@@ -28,6 +28,8 @@ package com.kubling.core;
 
 import org.junit.jupiter.api.Test;
 
+import java.io.Serial;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -95,5 +97,35 @@ public final class TestMetaMatrixRuntimeException {
         assertEquals("Code", err.getCode());
         assertEquals("Code Test", err.getMessage());
 
+    }
+
+    @Test
+    public void testConstructorDoesNotInvokeOverridableSetter() {
+        TrackingRuntimeException err = new TrackingRuntimeException(Event.Code, "Test");
+
+        assertFalse(err.setterInvoked);
+        assertEquals("Code", err.getCode());
+
+        err.setCode("Other");
+        assertTrue(err.setterInvoked);
+        assertEquals("Other", err.getCode());
+    }
+
+    private static final class TrackingRuntimeException extends KublingRuntimeException {
+
+        @Serial
+        private static final long serialVersionUID = 1L;
+
+        private boolean setterInvoked;
+
+        private TrackingRuntimeException(BundleUtil.Event code, String message) {
+            super(code, message);
+        }
+
+        @Override
+        public void setCode(String code) {
+            setterInvoked = true;
+            super.setCode(code);
+        }
     }
 }

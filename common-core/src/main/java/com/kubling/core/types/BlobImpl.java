@@ -31,6 +31,7 @@ import javax.sql.rowset.serial.SerialBlob;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.Serial;
 import java.sql.Blob;
 import java.sql.SQLException;
 
@@ -42,6 +43,9 @@ import java.sql.SQLException;
  * objects.
  */
 public class BlobImpl extends BaseLob implements Blob, StreamProvider {
+
+    @Serial
+    private static final long serialVersionUID = 5328359053675439976L;
 
     public BlobImpl() {
 

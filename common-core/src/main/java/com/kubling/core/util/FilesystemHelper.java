@@ -4,7 +4,7 @@
 
 package com.kubling.core.util;
 
-import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.apache.commons.vfs2.FileObject;
 import org.apache.commons.vfs2.FileSystemException;
 import org.apache.commons.vfs2.FileSystemManager;
@@ -239,7 +239,7 @@ public class FilesystemHelper {
     public static byte[] readFileContentFromZip(String pathToFile, FileObject zipFile)
             throws IOException {
 
-        pathToFile = StringUtils.removeStart(pathToFile, "/");
+        pathToFile = Strings.CS.removeStart(pathToFile, "/");
         String[] children = pathToFile.split("/");
         FileObject pathFo = zipFile;
         FileObject contentFo = null;
@@ -269,7 +269,7 @@ public class FilesystemHelper {
     public static List<String> listFileNameOfDirFromZip(String pathToDir, FileObject zipFile)
             throws IOException {
 
-        pathToDir = StringUtils.removeStart(pathToDir, "/");
+        pathToDir = Strings.CS.removeStart(pathToDir, "/");
         String[] children = pathToDir.split("/");
         FileObject pathFo = zipFile;
 

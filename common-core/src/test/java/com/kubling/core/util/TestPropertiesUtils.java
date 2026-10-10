@@ -34,7 +34,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Tests primarily the various cloning scenarios available with PropertiesUtils
  */
-@SuppressWarnings({"nls", "unchecked"})
+@SuppressWarnings("nls")
 public class TestPropertiesUtils {
 
     private final static String TEMP_FILE = UnitTestUtil.getTestScratchPath() + "/temp.properties";
@@ -192,7 +192,7 @@ public class TestPropertiesUtils {
      *                        defaults of the properties, the third Map the defaults of the second Map, and so on...
      * @return true or false for pass or fail
      */
-    private static boolean verifyProps(Properties props, List chainOfMappings) {
+    private static boolean verifyProps(Properties props, List<Map<String, String>> chainOfMappings) {
         boolean result = verifyAllPropsPresent(props, chainOfMappings);
         if (result) {
             result = verifyCorrectMappings(props, chainOfMappings);
@@ -209,16 +209,11 @@ public class TestPropertiesUtils {
      *                        defaults of the properties, the third Map the defaults of the second Map, and so on...
      * @return true all keys are present, false otherwise
      */
-    private static boolean verifyAllPropsPresent(Properties props, List chainOfMappings) {
-        Enumeration e = props.propertyNames();
-        HashSet propNames = new HashSet();
-        while (e.hasMoreElements()) {
-            propNames.add(e.nextElement());
-        }
-
-        HashSet testNames = new HashSet();
-        for (Object chainOfMapping : chainOfMappings) {
-            Map aMapping = (Map) chainOfMapping;
+    private static boolean verifyAllPropsPresent(Properties props,
+                                                 List<Map<String, String>> chainOfMappings) {
+        Set<String> propNames = props.stringPropertyNames();
+        Set<String> testNames = new HashSet<>();
+        for (Map<String, String> aMapping : chainOfMappings) {
             testNames.addAll(aMapping.keySet());
         }
         return propNames.containsAll(testNames);
@@ -240,17 +235,18 @@ public class TestPropertiesUtils {
      *                        defaults of the properties, the third Map the defaults of the second Map, and so on...
      * @return true if props correctly reflects the chainOfMappings, false otherwise
      */
-    private static boolean verifyCorrectMappings(Properties props, List chainOfMappings) {
-        Enumeration e = props.propertyNames();
+    private static boolean verifyCorrectMappings(Properties props,
+                                                 List<Map<String, String>> chainOfMappings) {
+        Enumeration<?> e = props.propertyNames();
         boolean allGood = true;
         while (e.hasMoreElements() && allGood) {
             boolean foundKey = false;
             String propName = (String) e.nextElement();
             String propValue = props.getProperty(propName);
-            Iterator i = chainOfMappings.iterator();
+            Iterator<Map<String, String>> i = chainOfMappings.iterator();
             while (i.hasNext() && !foundKey) {
-                Map aMapping = (Map) i.next();
-                Object value = aMapping.get(propName);
+                Map<String, String> aMapping = i.next();
+                String value = aMapping.get(propName);
                 if (value != null) {
                     foundKey = true;
                     allGood = propValue.equals(value);
@@ -270,16 +266,15 @@ public class TestPropertiesUtils {
      * @param makeUnmodifiable If true, the returned Properties object will be
      *                         an instance of UnmodifiableProperties wrapping a Properties object
      */
-    private static Properties make(Map mappings, Properties defaults, boolean makeUnmodifiable) {
+    private static Properties make(Map<String, String> mappings, Properties defaults, boolean makeUnmodifiable) {
         Properties props;
         if (defaults != null) {
             props = new Properties(defaults);
         } else {
             props = new Properties();
         }
-        for (Object o : mappings.entrySet()) {
-            Map.Entry anEntry = (Map.Entry) o;
-            props.setProperty((String) anEntry.getKey(), (String) anEntry.getValue());
+        for (Map.Entry<String, String> anEntry : mappings.entrySet()) {
+            props.setProperty(anEntry.getKey(), anEntry.getValue());
         }
         return props;
     }
@@ -311,8 +306,8 @@ public class TestPropertiesUtils {
     private static final Map<String, String> MAP_C;
     private static final List<Map<String, String>> LIST_A;
     //    private static final List LIST_B;
-    private static final List LIST_AB;
-    private static final List LIST_ABC;
+    private static final List<Map<String, String>> LIST_AB;
+    private static final List<Map<String, String>> LIST_ABC;
 
     static {
         //A

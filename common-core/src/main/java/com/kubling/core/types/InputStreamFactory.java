@@ -53,6 +53,13 @@ public abstract class InputStreamFactory implements Source {
     private String systemId;
     protected long length = -1;
 
+    public InputStreamFactory() {
+    }
+
+    private InputStreamFactory(String systemId) {
+        this.systemId = systemId;
+    }
+
     /**
      * Get a new InputStream
      */
@@ -98,8 +105,8 @@ public abstract class InputStreamFactory implements Source {
         private final File f;
 
         public FileInputStreamFactory(File f) {
+            super(f.toURI().toASCIIString());
             this.f = f;
-            this.setSystemId(f.toURI().toASCIIString());
         }
 
         @Override

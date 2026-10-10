@@ -47,9 +47,12 @@ public final class ArrayImpl implements Comparable<ArrayImpl>, Externalizable, A
      * a regrettable hack for pg compatibility since we want to avoid adding a vector type
      */
     private boolean zeroBased;
-    private Object[] values;
+    private transient Object[] values;
 
     public final static class NullException extends RuntimeException {
+
+        @Serial
+        private static final long serialVersionUID = -1163661573729970809L;
     }
 
     private final static NullException ex = new NullException();
@@ -115,13 +118,18 @@ public final class ArrayImpl implements Comparable<ArrayImpl>, Externalizable, A
             } else if (comparator != null) {
                 comp = comparator.compare(object1, object2);
             } else {
-                comp = ((Comparable) object1).compareTo(object2);
+                comp = compareValues((Comparable<?>) object1, object2);
             }
             if (comp != 0) {
                 return comp;
             }
         }
         return len1 - len2;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static int compareValues(Comparable<?> left, Object right) {
+        return ((Comparable<Object>) left).compareTo(right);
     }
 
     @Override

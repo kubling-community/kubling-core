@@ -36,7 +36,7 @@ public class SimpleMock extends MixinProxy {
     @Override
     protected Object noSuchMethodFound(Object proxy, Method method,
                                        Object[] args) throws Throwable {
-        Class clazz = method.getReturnType();
+        Class<?> clazz = method.getReturnType();
 
         if (clazz == Void.TYPE) {
             return null;
@@ -51,7 +51,7 @@ public class SimpleMock extends MixinProxy {
 
         if (!clazz.isInterface()) {
             try {
-                Constructor c = clazz.getDeclaredConstructor();
+                Constructor<?> c = clazz.getDeclaredConstructor();
                 if (c != null) {
                     try {
                         return c.newInstance();
@@ -65,10 +65,10 @@ public class SimpleMock extends MixinProxy {
             return null;
         }
 
-        Class[] interfaces = clazz.getInterfaces();
+        Class<?>[] interfaces = clazz.getInterfaces();
 
         if (clazz.isInterface()) {
-            interfaces = new Class[]{clazz};
+            interfaces = new Class<?>[]{clazz};
         }
 
         if (interfaces != null && interfaces.length > 0) {
@@ -79,17 +79,20 @@ public class SimpleMock extends MixinProxy {
     }
 
     public static <T> T createSimpleMock(Class<T> clazz) {
-        return (T) Proxy.newProxyInstance(Thread.currentThread().getContextClassLoader(), new Class[]{clazz}, new SimpleMock(new Object[]{}));
+        return clazz.cast(Proxy.newProxyInstance(Thread.currentThread().getContextClassLoader(),
+                new Class<?>[]{clazz}, new SimpleMock(new Object[]{})));
     }
 
     public static <T> T createSimpleMock(Object baseInstance, Class<T> clazz) {
         if (baseInstance instanceof Object[]) {
-            return (T) Proxy.newProxyInstance(Thread.currentThread().getContextClassLoader(), new Class[]{clazz}, new SimpleMock((Object[]) baseInstance));
+            return clazz.cast(Proxy.newProxyInstance(Thread.currentThread().getContextClassLoader(),
+                    new Class<?>[]{clazz}, new SimpleMock((Object[]) baseInstance)));
         }
-        return (T) Proxy.newProxyInstance(Thread.currentThread().getContextClassLoader(), new Class[]{clazz}, new SimpleMock(new Object[]{baseInstance}));
+        return clazz.cast(Proxy.newProxyInstance(Thread.currentThread().getContextClassLoader(),
+                new Class<?>[]{clazz}, new SimpleMock(new Object[]{baseInstance})));
     }
 
-    public static Object createSimpleMock(Object[] baseInstances, Class[] interfaces) {
+    public static Object createSimpleMock(Object[] baseInstances, Class<?>[] interfaces) {
         return Proxy.newProxyInstance(Thread.currentThread().getContextClassLoader(), interfaces, new SimpleMock(baseInstances));
     }
 

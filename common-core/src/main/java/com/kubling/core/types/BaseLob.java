@@ -33,8 +33,8 @@ public class BaseLob implements Externalizable, StreamFactoryReference {
 
     @Serial
     private static final long serialVersionUID = -1586959324208959519L;
-    private InputStreamFactory streamFactory;
-    private Charset charset;
+    private transient InputStreamFactory streamFactory;
+    private transient Charset charset;
 
     public BaseLob() {
 
@@ -42,6 +42,11 @@ public class BaseLob implements Externalizable, StreamFactoryReference {
 
     protected BaseLob(InputStreamFactory streamFactory) {
         this.streamFactory = streamFactory;
+    }
+
+    BaseLob(InputStreamFactory streamFactory, Charset charset) {
+        this.streamFactory = streamFactory;
+        this.charset = charset;
     }
 
     public void setStreamFactory(InputStreamFactory streamFactory) {
@@ -76,6 +81,7 @@ public class BaseLob implements Externalizable, StreamFactoryReference {
         this.streamFactory = null;
     }
 
+    @SuppressWarnings("deprecation")
     public Reader getCharacterStream() throws SQLException {
         try {
             Reader r = this.getStreamFactory().getCharacterStream();

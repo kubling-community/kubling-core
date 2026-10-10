@@ -31,9 +31,8 @@ import javax.xml.stream.*;
 import java.io.*;
 import java.util.*;
 
-
 /**
- * A PlanNode represents part of processing plan tree.  For relational plans
+ * A PlanNode represents part of processing plan tree. For relational plans
  * child PlanNodes may be either subqueries or nodes that feed tuples into the
  * parent. For procedure plans child PlanNodes will be processing instructions,
  * which can in turn contain other relational or procedure plans.
@@ -231,7 +230,8 @@ public class PlanNode implements Externalizable {
                 buildNode(reader, planNode);
                 return planNode;
             }
-            throw new XMLStreamException(JDBCPlugin.Util.gs("unexpected_element", reader.getName(), "node"), reader.getLocation());
+            throw new XMLStreamException(JDBCPlugin.Util.gs("unexpected_element", reader.getName(), "node"),
+                    reader.getLocation());
         }
         return null;
     }
@@ -283,7 +283,7 @@ public class PlanNode implements Externalizable {
     }
 
     protected void visitNode(PlanNode node, int nodeLevel, boolean yaml, StringBuilder text) {
-        text.append("  ".repeat(Math.max(0, nodeLevel)));
+        text.repeat("  ", Math.max(0, nodeLevel));
         text.append(node.getName());
         if (yaml) {
             text.append(":\n");
@@ -295,7 +295,7 @@ public class PlanNode implements Externalizable {
         int propTabs = nodeLevel + 1;
         for (Property property : node.getProperties()) {
             // Print leading spaces for prop name
-            text.append("  ".repeat(Math.max(0, propTabs)));
+            text.repeat("  ", Math.max(0, propTabs));
             printProperty(nodeLevel, property, yaml, text);
         }
     }
@@ -312,7 +312,7 @@ public class PlanNode implements Externalizable {
         } else if (p.getValues().size() > 1) {
             text.append(":\n");
             for (int i = 0; i < p.getValues().size(); i++) {
-                text.append("  ".repeat(Math.max(0, nodeLevel + 2)));
+                text.repeat("  ", Math.max(0, nodeLevel + 2));
                 if (yaml) {
                     text.append("- ");
                 } else {

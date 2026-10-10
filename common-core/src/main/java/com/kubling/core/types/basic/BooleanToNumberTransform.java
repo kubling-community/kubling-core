@@ -39,12 +39,12 @@ public class BooleanToNumberTransform extends Transform {
     }
 
     @Override
-    public Class getSourceType() {
+    public Class<?> getSourceType() {
         return DataTypeManager.DefaultDataClasses.BOOLEAN;
     }
 
     @Override
-    public Class getTargetType() {
+    public Class<?> getTargetType() {
         return targetType;
     }
 

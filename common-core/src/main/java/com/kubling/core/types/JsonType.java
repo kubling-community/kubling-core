@@ -44,7 +44,7 @@ public final class JsonType extends BaseClobType implements Comparable<BaseClobT
     private static final ObjectMapper MAPPER = new ObjectMapper()
             .configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
 
-    private JsonNode jsonNode;  // cache
+    private transient JsonNode jsonNode;  // cache
 
     @Serial
     private static final long serialVersionUID = 2753412502127824104L;

@@ -25,10 +25,14 @@ package com.kubling.core.types;
 import com.kubling.core.util.Assertion;
 import com.kubling.core.util.PropertiesUtils;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.Arrays;
 
 public final class BinaryType implements Comparable<BinaryType>, Serializable {
+
+    @Serial
+    private static final long serialVersionUID = -7112228759017805524L;
 
     private final byte[] bytes;
 

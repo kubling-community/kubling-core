@@ -27,11 +27,15 @@ import com.kubling.core.KublingRuntimeException;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.Properties;
 
 
 public final class ApplicationInfo implements Serializable {
+
+    @Serial
+    private static final long serialVersionUID = -4723658681834168137L;
 
     public static final String APPLICATION_PRODUCT_INFORMATION = "Product Information";
 
@@ -61,9 +65,13 @@ public final class ApplicationInfo implements Serializable {
     }
 
     public int getMinorReleaseVersion() {
-        int majorIndex = getReleaseNumber().indexOf('.');
-        String version =
-                getReleaseNumber().substring(majorIndex + 1, getReleaseNumber().indexOf('.', majorIndex + 1));
+        String releaseNumber = getReleaseNumber();
+        int majorIndex = releaseNumber.indexOf('.');
+        int minorEnd = releaseNumber.indexOf('.', majorIndex + 1);
+        if (minorEnd < 0) {
+            minorEnd = releaseNumber.length();
+        }
+        String version = releaseNumber.substring(majorIndex + 1, minorEnd);
         return Integer.parseInt(version);
     }
 

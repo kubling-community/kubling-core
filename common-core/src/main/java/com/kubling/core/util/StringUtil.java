@@ -23,11 +23,13 @@
 package com.kubling.core.util;
 
 import org.apache.commons.lang3.RegExUtils;
+import org.apache.commons.lang3.Strings;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 
 import java.lang.reflect.Array;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URL;
 import java.util.*;
 
@@ -131,7 +133,7 @@ public final class StringUtil {
      * replaced with the replace string
      */
     public static String replace(String source, String search, String replace) {
-        return StringUtils.replace(source, search, replace);
+        return Strings.CS.replace(source, search, replace);
     }
 
     /**
@@ -268,7 +270,7 @@ public final class StringUtil {
         if (text == null || prefix == null) {
             return false;
         }
-        return StringUtils.startsWithIgnoreCase(text, prefix);
+        return Strings.CI.startsWith(text, prefix);
     }
 
     /**
@@ -278,7 +280,7 @@ public final class StringUtil {
         if (text == null || suffix == null) {
             return false;
         }
-        return StringUtils.endsWithIgnoreCase(text, suffix);
+        return Strings.CI.endsWith(text, suffix);
     }
 
     /**
@@ -334,8 +336,8 @@ public final class StringUtil {
         // URL
         if (type == URL.class) {
             try {
-                return (T) new URL(value);
-            } catch (MalformedURLException e) {
+                return (T) URI.create(value).toURL();
+            } catch (IllegalArgumentException | MalformedURLException e) {
                 throw new IllegalArgumentException("Invalid URL: " + value, e);
             }
         }
@@ -381,7 +383,7 @@ public final class StringUtil {
     }
 
     public static boolean equalsIgnoreCase(String s1, String s2) {
-        return StringUtils.equalsIgnoreCase(s1, s2);
+        return Strings.CI.equals(s1, s2);
     }
 
     public static <T extends Enum<T>> T caseInsensitiveValueOf(Class<T> enumType, String name) {

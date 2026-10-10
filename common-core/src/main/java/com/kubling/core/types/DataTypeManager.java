@@ -126,6 +126,7 @@ public class DataTypeManager {
         }
 
         @Override
+        @SuppressWarnings("unchecked")
         protected T get(int index) {
             WeakReference<T> ref = (WeakReference<T>) cache[index];
             if (ref != null) {
@@ -969,18 +970,22 @@ public class DataTypeManager {
         return valueCacheEnabled;
     }
 
-    @SuppressWarnings("unchecked")
     public static <T> T getCanonicalValue(T value) {
         if (valueCacheEnabled) {
             if (value == null) {
                 return null;
             }
-            ValueCache valueCache = valueMaps.get(value.getClass());
+            ValueCache<?> valueCache = valueMaps.get(value.getClass());
             if (valueCache != null) {
-                value = (T) valueCache.getValue(value);
+                value = getCachedValue(valueCache, value);
             }
         }
         return value;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T> T getCachedValue(ValueCache<?> valueCache, T value) {
+        return ((ValueCache<T>) valueCache).getValue(value);
     }
 
     public static String getCanonicalString(String value) {

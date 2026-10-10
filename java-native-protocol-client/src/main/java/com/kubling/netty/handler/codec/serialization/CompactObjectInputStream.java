@@ -68,13 +68,11 @@ public class CompactObjectInputStream extends ObjectInputStream {
                 return super.readClassDescriptor();
             case CompactObjectOutputStream.TYPE_NON_PRIMITIVE:
                 String className = readUTF();
-                if (classLoader == null) {
-                    clazz = Class.forName(
-                            className, true,
-                            CompactObjectInputStream.class.getClassLoader());
-                } else {
-                    clazz = Class.forName(className, true, classLoader);
-                }
+                ObjectInputStreamWithClassloader.checkClass(className);
+                ClassLoader loader = classLoader == null
+                        ? CompactObjectInputStream.class.getClassLoader()
+                        : classLoader;
+                clazz = Class.forName(className, false, loader);
                 return ObjectStreamClass.lookupAny(clazz);
             default:
                 clazz = CompactObjectOutputStream.KNOWN_CODES.get(type);

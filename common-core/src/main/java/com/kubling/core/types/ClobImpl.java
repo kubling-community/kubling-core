@@ -41,6 +41,9 @@ import java.sql.SQLException;
  */
 public class ClobImpl extends BaseLob implements Clob {
 
+    @Serial
+    private static final long serialVersionUID = -4868633917511897143L;
+
     private static final class StringInputStreamFactory extends
             InputStreamFactory {
         String str;

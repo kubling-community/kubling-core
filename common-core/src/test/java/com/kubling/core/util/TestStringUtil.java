@@ -24,6 +24,7 @@ package com.kubling.core.util;
 
 import org.junit.jupiter.api.Test;
 
+import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
@@ -33,7 +34,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class TestStringUtil {
 
-    public void helpTestJoin(List input, String delimiter, String expectedResult) {
+    public void helpTestJoin(List<String> input, String delimiter, String expectedResult) {
         String result = StringUtil.join(input, delimiter);
         assertEquals(expectedResult, result);
     }
@@ -224,7 +225,7 @@ public class TestStringUtil {
         assertEquals(Long.valueOf(12334567L), StringUtil.valueOf("12334567", Long.class));
         assertEquals(Short.valueOf((short) 21), StringUtil.valueOf("21", Short.class));
 
-        List list = StringUtil.valueOf("foo,bar,x,y,z", List.class);
+        List<?> list = StringUtil.valueOf("foo,bar,x,y,z", List.class);
         assertEquals(5, list.size());
         assertTrue(list.contains("foo"));
         assertTrue(list.contains("x"));
@@ -233,12 +234,15 @@ public class TestStringUtil {
         assertEquals(5, values.length);
         assertEquals(5, values[4]);
 
-        Map m = StringUtil.valueOf("foo=bar,x=,y=z", Map.class);
+        Map<?, ?> m = StringUtil.valueOf("foo=bar,x=,y=z", Map.class);
         assertEquals(3, m.size());
         assertEquals(m.get("foo"), "bar");
         assertEquals(m.get("x"), "");
         assertEquals(EnumTest.HELLO, StringUtil.valueOf("HELLO", EnumTest.class));
 
-        assertEquals(new URL("https://kubling.com"), StringUtil.valueOf("https://kubling.com", URL.class));
+        assertEquals(URI.create("https://kubling.com").toURL(),
+                StringUtil.valueOf("https://kubling.com", URL.class));
+        assertThrows(IllegalArgumentException.class,
+                () -> StringUtil.valueOf("not-a-url", URL.class));
     }
 }

@@ -27,6 +27,7 @@ import org.junit.jupiter.api.Test;
 
 import javax.xml.transform.stream.StreamSource;
 import java.io.Reader;
+import java.io.Serial;
 import java.sql.SQLException;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -107,6 +108,38 @@ public class TestSQLXMLImpl {
             }
         };
         assertEquals("aaaaa", clob.getString());
+    }
+
+    @Test
+    public void testConstructorDoesNotInvokeOverridableEncodingSetter() {
+        TrackingSQLXMLImpl xml = new TrackingSQLXMLImpl(testStr);
+
+        assertFalse(xml.setterInvoked);
+        assertEquals(Streamable.CHARSET, xml.getCharset());
+
+        xml.setEncoding(Streamable.ENCODING);
+        assertTrue(xml.setterInvoked);
+    }
+
+    private static final class TrackingSQLXMLImpl extends SQLXMLImpl {
+
+        @Serial
+        private static final long serialVersionUID = 1L;
+
+        private boolean setterInvoked;
+
+        public TrackingSQLXMLImpl() {
+        }
+
+        private TrackingSQLXMLImpl(String value) {
+            super(value);
+        }
+
+        @Override
+        public void setEncoding(String encoding) {
+            setterInvoked = true;
+            super.setEncoding(encoding);
+        }
     }
 
 }

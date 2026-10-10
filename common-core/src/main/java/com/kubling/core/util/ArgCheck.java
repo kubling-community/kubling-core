@@ -358,7 +358,7 @@ public class ArgCheck {
      * @param value    Value
      * @throws IllegalArgumentException If value is null
      */
-    public static void isInstanceOf(Class theClass, Object value) {
+    public static void isInstanceOf(Class<?> theClass, Object value) {
         isInstanceOf(theClass, value, null);
     }
 
@@ -370,7 +370,7 @@ public class ArgCheck {
      * @param message  Exception message if check fails
      * @throws IllegalArgumentException If value is null
      */
-    public static void isInstanceOf(Class theClass, Object value, String message) {
+    public static void isInstanceOf(Class<?> theClass, Object value, String message) {
         isNotNull(value);
         if (!theClass.isInstance(value)) {
             final String msg = message != null ?
@@ -388,7 +388,7 @@ public class ArgCheck {
      * @param collection Collection
      * @throws IllegalArgumentException If collection is null or empty
      */
-    public static void isNotEmpty(Collection collection) {
+    public static void isNotEmpty(Collection<?> collection) {
         isNotEmpty(collection, null);
     }
 
@@ -399,7 +399,7 @@ public class ArgCheck {
      * @param message    Exception message if check fails
      * @throws IllegalArgumentException If collection is null or empty
      */
-    public static void isNotEmpty(Collection collection, String message) {
+    public static void isNotEmpty(Collection<?> collection, String message) {
         isNotNull(collection);
         if (collection.isEmpty()) {
             final String msg = message != null ?
@@ -415,7 +415,7 @@ public class ArgCheck {
      * @param map Map
      * @throws IllegalArgumentException If map is null or empty
      */
-    public static void isNotEmpty(Map map) {
+    public static void isNotEmpty(Map<?, ?> map) {
         isNotEmpty(map, null);
     }
 
@@ -426,7 +426,7 @@ public class ArgCheck {
      * @param message Exception message if check fails
      * @throws IllegalArgumentException If map is null or empty
      */
-    public static void isNotEmpty(Map map, String message) {
+    public static void isNotEmpty(Map<?, ?> map, String message) {
         isNotNull(map);
         if (map.isEmpty()) {
             final String msg = message != null ?
@@ -521,7 +521,7 @@ public class ArgCheck {
      * @param value      Value to check for, may be null
      * @throws IllegalArgumentException If collection is null or doesn't contain value
      */
-    public static void contains(Collection collection, Object value) {
+    public static void contains(Collection<?> collection, Object value) {
         contains(collection, value, null);
     }
 
@@ -533,7 +533,7 @@ public class ArgCheck {
      * @param message    Exception message if check fails
      * @throws IllegalArgumentException If collection is null or doesn't contain value
      */
-    public static void contains(Collection collection, Object value, String message) {
+    public static void contains(Collection<?> collection, Object value, String message) {
         isNotNull(collection);
         if (!collection.contains(value)) {
             final String msg = message != null ?
@@ -550,7 +550,7 @@ public class ArgCheck {
      * @param key Key to check for, may be null
      * @throws IllegalArgumentException If map  is null or doesn't contain key
      */
-    public static void containsKey(Map map, Object key) {
+    public static void containsKey(Map<?, ?> map, Object key) {
         containsKey(map, key, null);
     }
 
@@ -562,7 +562,7 @@ public class ArgCheck {
      * @param message Exception message if check fails
      * @throws IllegalArgumentException If map  is null or doesn't contain key
      */
-    public static void containsKey(Map map, Object key, String message) {
+    public static void containsKey(Map<?, ?> map, Object key, String message) {
         isNotNull(map);
         if (!map.containsKey(key)) {
             final String msg = message != null ?

@@ -28,10 +28,10 @@ import com.kubling.core.types.TransformationException;
 
 public class NumberToBooleanTransform extends Transform {
 
-    private final Comparable falseVal;
+    private final Comparable<?> falseVal;
     private final Class<?> sourceType;
 
-    public NumberToBooleanTransform(Comparable falseVal) {
+    public NumberToBooleanTransform(Comparable<?> falseVal) {
         this.falseVal = falseVal;
         this.sourceType = falseVal.getClass();
     }
@@ -48,7 +48,7 @@ public class NumberToBooleanTransform extends Transform {
 
     @Override
     public Object transformDirect(Object value) throws TransformationException {
-        if (falseVal.compareTo(value) == 0) {
+        if (NumberToNumberTransform.compare(falseVal, value) == 0) {
             return Boolean.FALSE;
         }
         return Boolean.TRUE;
