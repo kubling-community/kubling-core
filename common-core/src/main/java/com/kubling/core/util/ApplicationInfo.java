@@ -65,9 +65,13 @@ public final class ApplicationInfo implements Serializable {
     }
 
     public int getMinorReleaseVersion() {
-        int majorIndex = getReleaseNumber().indexOf('.');
-        String version =
-                getReleaseNumber().substring(majorIndex + 1, getReleaseNumber().indexOf('.', majorIndex + 1));
+        String releaseNumber = getReleaseNumber();
+        int majorIndex = releaseNumber.indexOf('.');
+        int minorEnd = releaseNumber.indexOf('.', majorIndex + 1);
+        if (minorEnd < 0) {
+            minorEnd = releaseNumber.length();
+        }
+        String version = releaseNumber.substring(majorIndex + 1, minorEnd);
         return Integer.parseInt(version);
     }
 
