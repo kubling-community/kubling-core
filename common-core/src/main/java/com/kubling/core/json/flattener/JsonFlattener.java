@@ -322,18 +322,14 @@ public final class JsonFlattener {
     }
 
     private String javaObj2Json(Object obj) {
-        if (obj == null) {
-            return "null";
-        } else if (obj instanceof CharSequence) {
-            return '"' +
-                    policy.getCharSequenceTranslator().translate((CharSequence) obj) +
+        return switch (obj) {
+            case null -> "null";
+            case CharSequence charSequence -> '"' +
+                    policy.getCharSequenceTranslator().translate(charSequence) +
                     '"';
-        } else if (obj instanceof JsonifyArrayList) {
-            JsonifyArrayList<?> list = (JsonifyArrayList<?>) obj;
-            return list.toString(printMode);
-        } else {
-            return obj.toString();
-        }
+            case JsonifyArrayList<?> list -> list.toString(printMode);
+            default -> obj.toString();
+        };
     }
 
     /**
@@ -463,7 +459,7 @@ public final class JsonFlattener {
                     sb.append('"');
                     sb.append(rightBracket);
                 } else {
-                    if (sb.length() != 0) sb.append(separator);
+                    if (!sb.isEmpty()) sb.append(separator);
                     sb.append(key);
                 }
             } else { // JsonValue

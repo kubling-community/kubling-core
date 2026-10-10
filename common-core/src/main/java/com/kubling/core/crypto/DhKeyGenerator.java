@@ -55,20 +55,14 @@ public class DhKeyGenerator {
 
     private static DHParameterSpec loadKeySpecification(String propsFile) {
         Properties props = new Properties();
-        InputStream is = null;
-        try {
-            is = DhKeyGenerator.class.getResourceAsStream(propsFile);
-            props.load(is);
-        } catch (IOException e) {
-            throw new KublingRuntimeException(CorePlugin.Event.KBL10000, e);
-        } finally {
+        try (InputStream is = DhKeyGenerator.class.getResourceAsStream(propsFile)) {
             try {
-                if (is != null) {
-                    is.close();
-                }
+                props.load(is);
             } catch (IOException e) {
-                // Ignored
+                throw new KublingRuntimeException(CorePlugin.Event.KBL10000, e);
             }
+        } catch (IOException e) {
+            // Ignored
         }
         BigInteger p = new BigInteger(props.getProperty("p"));
         BigInteger g = new BigInteger(props.getProperty("g"));

@@ -38,6 +38,7 @@ import java.util.Objects;
  */
 public class JsonifyArrayList<E> extends ArrayList<E> {
 
+    @Serial
     private static final long serialVersionUID = 1L;
 
     private transient CharSequenceTranslator translator =

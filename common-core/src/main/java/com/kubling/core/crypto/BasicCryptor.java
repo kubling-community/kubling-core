@@ -38,7 +38,8 @@ import java.security.*;
 import java.util.Arrays;
 
 /**
- * <p>Public methods in this class throw only <code>CryptoException</code>s.
+ * <p>
+ * Public methods in this class throw only <code>CryptoException</code>s.
  */
 public class BasicCryptor implements Cryptor {
 
@@ -53,7 +54,7 @@ public class BasicCryptor implements Cryptor {
     /**
      * The key to be used for encryption.
      */
-    private Key encryptKey;
+    private final Key encryptKey;
     /**
      * The <code>Cipher</code> to use for encryption.
      */
@@ -66,7 +67,7 @@ public class BasicCryptor implements Cryptor {
 
     private ClassLoader classLoader = BasicCryptor.class.getClassLoader();
     private boolean useSealedObject = true;
-    private IvParameterSpec iv;
+    private final IvParameterSpec iv;
     private byte[] randBuffer;
 
     public BasicCryptor(Key encryptKey, Key decryptKey, String algorithm, IvParameterSpec iv) throws CryptoException {
@@ -93,14 +94,15 @@ public class BasicCryptor implements Cryptor {
     /**
      * Decrypt the ciphertext to yield the original cleartext.
      *
-     * @param ciphertext The text to be encrypted, in byte form
+     * @param ciphertext
+     *            The text to be encrypted, in byte form
      * @return The decrypted cleartext, in byte form
      */
     public synchronized byte[] decrypt(byte[] ciphertext) throws CryptoException {
         try {
             byte[] result = decryptCipher.doFinal(ciphertext);
             if (iv != null) {
-                //throw away the first block
+                // throw away the first block
                 return Arrays.copyOfRange(result, iv.getIV().length, result.length);
             }
             return result;
@@ -108,16 +110,17 @@ public class BasicCryptor implements Cryptor {
             try {
                 initDecryptCipher();
             } catch (CryptoException err) {
-                //shouldn't happen
+                // shouldn't happen
             }
-            throw new CryptoException(CorePlugin.Event.KBL10006, CorePlugin.Util.gs(CorePlugin.Event.KBL10006, e.getClass().getName(), e.getMessage()));
+            throw new CryptoException(CorePlugin.Event.KBL10006,
+                    CorePlugin.Util.gs(CorePlugin.Event.KBL10006, e.getClass().getName(), e.getMessage()));
         }
     }
 
     /**
-     * Initialize the ciphers used for encryption and decryption.  The ciphers
-     * define the algorithms to be used.  They are initialized with the
-     * appropriate key to be used in the encryption or decryption operation.
+     * Initialize the ciphers used for encryption and decryption. The ciphers define
+     * the algorithms to be used. They are initialized with the appropriate key to
+     * be used in the encryption or decryption operation.
      */
     protected void initDecryptCipher() throws CryptoException {
         initializeDecryptCipher();
@@ -129,31 +132,26 @@ public class BasicCryptor implements Cryptor {
         try {
             decryptCipher = Cipher.getInstance(cipherAlgorithm);
             decryptCipher.init(Cipher.DECRYPT_MODE, decryptKey, iv);
-        } catch (NoSuchAlgorithmException e) {
+        } catch (NoSuchAlgorithmException | InvalidAlgorithmParameterException e) {
             throw new CryptoException(CorePlugin.Event.KBL10009, e,
                     CorePlugin.Util.gs(CorePlugin.Event.KBL10009, cipherAlgorithm));
 
         } catch (NoSuchPaddingException e) {
-            throw new CryptoException(CorePlugin.Event.KBL10010,
-                    CorePlugin.Util.gs(CorePlugin.Event.KBL10010, cipherAlgorithm, e.getClass().getName(), e.getMessage()));
+            throw new CryptoException(CorePlugin.Event.KBL10010, CorePlugin.Util.gs(CorePlugin.Event.KBL10010,
+                    cipherAlgorithm, e.getClass().getName(), e.getMessage()));
 
         } catch (InvalidKeyException e) {
             throw new CryptoException(CorePlugin.Event.KBL10011, e,
                     CorePlugin.Util.gs(CorePlugin.Event.KBL10011, e.getClass().getName(), e.getMessage()));
 
-        } catch (InvalidAlgorithmParameterException e) {
-            throw new CryptoException(CorePlugin.Event.KBL10009, e,
-                    CorePlugin.Util.gs(CorePlugin.Event.KBL10009, cipherAlgorithm));
         }
     }
 
     public synchronized Object unsealObject(Object object) throws CryptoException {
         if (useSealedObject) {
-            if (!(object instanceof SealedObject)) {
+            if (!(object instanceof SealedObject so)) {
                 return object;
             }
-
-            SealedObject so = (SealedObject) object;
 
             ClassLoader cl = Thread.currentThread().getContextClassLoader();
             try {
@@ -165,7 +163,7 @@ public class BasicCryptor implements Cryptor {
                 try {
                     initDecryptCipher();
                 } catch (CryptoException err) {
-                    //shouldn't happen?
+                    // shouldn't happen?
                 }
                 throw new CryptoException(CorePlugin.Event.KBL10006,
                         CorePlugin.Util.gs(CorePlugin.Event.KBL10006, e.getClass().getName(), e.getMessage()));
@@ -173,10 +171,9 @@ public class BasicCryptor implements Cryptor {
                 Thread.currentThread().setContextClassLoader(cl);
             }
         }
-        if (!(object instanceof byte[])) {
+        if (!(object instanceof byte[] bytes)) {
             return object;
         }
-        byte[] bytes = (byte[]) object;
         bytes = decrypt(bytes);
         try {
             ObjectInputStream ois = new ObjectInputStreamWithClassloader(new ByteArrayInputStream(bytes), classLoader);
@@ -190,15 +187,15 @@ public class BasicCryptor implements Cryptor {
     /**
      * Encrypt the cleartext in byte array format.
      *
-     * @param cleartext The text to be encrypted, in byte form
+     * @param cleartext
+     *            The text to be encrypted, in byte form
      * @return The encrypted ciphertext, in byte form
      */
     public byte[] encrypt(byte[] cleartext) throws CryptoException {
         return encrypt(cleartext, 0, cleartext.length);
     }
 
-    public synchronized byte[] encrypt(byte[] buffer, int offset, int length)
-            throws CryptoException {
+    public synchronized byte[] encrypt(byte[] buffer, int offset, int length) throws CryptoException {
         try {
             byte[] initBlock = null;
             if (iv != null) {
@@ -216,7 +213,7 @@ public class BasicCryptor implements Cryptor {
             try {
                 initEncryptCipher();
             } catch (CryptoException err) {
-                //shouldn't happen
+                // shouldn't happen
             }
             throw new CryptoException(CorePlugin.Event.KBL10013,
                     CorePlugin.Util.gs(CorePlugin.Event.KBL10013, e.getMessage()));
@@ -224,9 +221,9 @@ public class BasicCryptor implements Cryptor {
     }
 
     /**
-     * Initialize the cipher used for encryption.  The cipher defines the
-     * algorithm to be used.  It is initialized with the appropriate key to
-     * be used in the encryption operation.
+     * Initialize the cipher used for encryption. The cipher defines the algorithm
+     * to be used. It is initialized with the appropriate key to be used in the
+     * encryption operation.
      */
     protected void initEncryptCipher() throws CryptoException {
         initializeEncryptCipher();
@@ -238,7 +235,7 @@ public class BasicCryptor implements Cryptor {
         try {
             encryptCipher = Cipher.getInstance(cipherAlgorithm);
             encryptCipher.init(Cipher.ENCRYPT_MODE, encryptKey, iv);
-        } catch (NoSuchAlgorithmException e) {
+        } catch (NoSuchAlgorithmException | InvalidAlgorithmParameterException e) {
             throw new CryptoException(CorePlugin.Event.KBL10016, e,
                     CorePlugin.Util.gs(CorePlugin.Event.KBL10016, cipherAlgorithm));
 
@@ -250,9 +247,6 @@ public class BasicCryptor implements Cryptor {
             throw new CryptoException(CorePlugin.Event.KBL10018, e,
                     CorePlugin.Util.gs(CorePlugin.Event.KBL10018, e.getMessage()));
 
-        } catch (InvalidAlgorithmParameterException e) {
-            throw new CryptoException(CorePlugin.Event.KBL10016, e,
-                    CorePlugin.Util.gs(CorePlugin.Event.KBL10016, cipherAlgorithm));
         }
     }
 
@@ -271,7 +265,7 @@ public class BasicCryptor implements Cryptor {
             try {
                 initEncryptCipher();
             } catch (CryptoException err) {
-                //shouldn't happen?
+                // shouldn't happen?
             }
             throw new CryptoException(CorePlugin.Event.KBL10013,
                     CorePlugin.Util.gs(CorePlugin.Event.KBL10013, e.getMessage()));

@@ -55,7 +55,6 @@ public class SymmetricCryptor extends BasicCryptor {
      * Creates a new SymmetricCryptor with a new symmetric key
      *
      * @return a new SymmetricCryptor
-     * @throws CryptoException
      */
     public static SymmetricCryptor getSymmectricCryptor(boolean cbc) throws CryptoException {
         Key key = generateKey();
@@ -82,31 +81,24 @@ public class SymmetricCryptor extends BasicCryptor {
      *
      * @param keyResource URL to the key
      * @return a new SymmetricCryptor
-     * @throws CryptoException
-     * @throws IOException
      */
     public static SymmetricCryptor getSymmectricCryptor(URL keyResource) throws CryptoException, IOException {
 
         ArgCheck.isNotNull(keyResource);
-        InputStream stream = keyResource.openStream();
-        try {
+        try (InputStream stream = keyResource.openStream()) {
             KeyStore store = KeyStore.getInstance("JCEKS");
             store.load(stream, DEFAULT_STORE_PASSWORD.toCharArray());
             Key key = store.getKey(DEFAULT_ALIAS, DEFAULT_STORE_PASSWORD.toCharArray());
             return new SymmetricCryptor(key, true);
         } catch (GeneralSecurityException e) {
             throw new CryptoException(CorePlugin.Event.KBL10022, e);
-        } finally {
-            stream.close();
         }
     }
 
     /**
      * Creates a SymmetricCryptor using the supplied byte array as the key
      *
-     * @param key
      * @return a new SymmetricCryptor
-     * @throws CryptoException
      */
     public static SymmetricCryptor getSymmectricCryptor(byte[] key, boolean cbc) throws CryptoException {
         Key secretKey = new SecretKeySpec(key, DEFAULT_SYM_KEY_ALGORITHM);
@@ -129,16 +121,13 @@ public class SymmetricCryptor extends BasicCryptor {
 
     private static void saveKey(String file, SecretKey key) throws CryptoException, IOException {
         ArgCheck.isNotNull(file);
-        FileOutputStream fos = new FileOutputStream(file);
-        try {
+        try (FileOutputStream fos = new FileOutputStream(file)) {
             KeyStore store = KeyStore.getInstance("JCEKS");
             store.load(null, null);
             store.setKeyEntry(DEFAULT_ALIAS, key, DEFAULT_STORE_PASSWORD.toCharArray(), null);
             store.store(fos, DEFAULT_STORE_PASSWORD.toCharArray());
         } catch (GeneralSecurityException e) {
             throw new CryptoException(CorePlugin.Event.KBL10023, e);
-        } finally {
-            fos.close();
         }
     }
 
