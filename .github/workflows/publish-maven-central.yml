@@ -30,13 +30,13 @@ jobs:
 
     steps:
       - name: Check out release
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.ref }}
           fetch-depth: 0
 
       - name: Set up GraalVM 25 and Maven Central credentials
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: graalvm
           java-version: '25'
