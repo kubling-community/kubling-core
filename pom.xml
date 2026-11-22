@@ -72,6 +72,9 @@
         <version.testcontainers-jdbc>1.21.4</version.testcontainers-jdbc>
 
         <version.assertj>3.27.7</version.assertj>
+
+        <version.org.codehaus.mojo.versions-maven-plugin>2.25.2</version.org.codehaus.mojo.versions-maven-plugin>
+        <version.org.owasp.dependency-check-maven>13.0.0</version.org.owasp.dependency-check-maven>
     </properties>
 
     <profiles>
@@ -436,9 +439,15 @@
                 </plugin>
 
                 <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>versions-maven-plugin</artifactId>
+                    <version>${version.org.codehaus.mojo.versions-maven-plugin}</version>
+                </plugin>
+
+                <plugin>
                     <groupId>org.owasp</groupId>
                     <artifactId>dependency-check-maven</artifactId>
-                    <version>8.4.0</version>
+                    <version>${version.org.owasp.dependency-check-maven}</version>
                     <configuration>
                         <assemblyAnalyzerEnabled>false</assemblyAnalyzerEnabled>
                     </configuration>
