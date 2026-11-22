@@ -52,17 +52,17 @@
         <version.commons-text>1.15.0</version.commons-text>
         <version.commons-lang3>3.22.0</version.commons-lang3>
         <version.commons-vfs2>2.10.0</version.commons-vfs2>
-        <version.commons-logging>1.3.4</version.commons-logging>
+        <version.commons-logging>1.4.0</version.commons-logging>
         <version.commons-compress>1.28.0</version.commons-compress>
         <version.commons-io>2.22.0</version.commons-io>
-        <version.jackson>3.1.8</version.jackson>
+        <version.jackson>3.3.0</version.jackson>
         <version.google.guava>33.8.0-jre</version.google.guava>
         <version.google.gson>2.15.0</version.google.gson>
-        <version.opentelemetry>1.62.0</version.opentelemetry>
+        <version.opentelemetry>1.68.0</version.opentelemetry>
         <version.jcip-annotations>1.0-1</version.jcip-annotations>
         <version.hikaricp>6.3.3</version.hikaricp>
         <version.slf4j>2.0.20</version.slf4j>
-        <version.logback>1.5.34</version.logback>
+        <version.logback>1.6.8</version.logback>
 
         <version.junit>5.12.2</version.junit>
         <version.org.mockito>5.24.0</version.org.mockito>
@@ -125,7 +125,7 @@
                     <plugin>
                         <groupId>org.sonatype.central</groupId>
                         <artifactId>central-publishing-maven-plugin</artifactId>
-                        <version>0.11.0</version>
+                        <version>0.12.0</version>
                         <extensions>true</extensions>
                         <configuration>
                             <publishingServerId>central</publishingServerId>
@@ -210,7 +210,7 @@
             <dependency>
                 <groupId>jakarta.activation</groupId>
                 <artifactId>jakarta.activation-api</artifactId>
-                <version>2.1.2</version>
+                <version>2.1.4</version>
             </dependency>
 
             <dependency>
@@ -373,7 +373,7 @@
             <plugin>
                 <groupId>com.diffplug.spotless</groupId>
                 <artifactId>spotless-maven-plugin</artifactId>
-                <version>3.10.0</version>
+                <version>3.11.0</version>
                 <configuration>
                     <java>
                         <removeUnusedImports/>
@@ -396,23 +396,23 @@
                 <!-- Fixes how test resources of a project can be used in projects dependent on it -->
                 <plugin>
                     <artifactId>maven-assembly-plugin</artifactId>
-                    <version>3.6.0</version>
+                    <version>3.8.0</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-rar-plugin</artifactId>
-                    <version>3.0.0</version>
+                    <version>3.1.0</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-antrun-plugin</artifactId>
-                    <version>3.1.0</version>
+                    <version>3.2.0</version>
                 </plugin>
 
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-war-plugin</artifactId>
-                    <version>3.4.0</version>
+                    <version>3.5.1</version>
                 </plugin>
 
                 <plugin>
