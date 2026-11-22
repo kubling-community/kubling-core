@@ -19,21 +19,20 @@
 
 package com.kubling.core.json.flattener;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import com.github.wnameless.json.base.JacksonJsonCore;
-import com.github.wnameless.json.base.JacksonJsonValue;
+import com.github.wnameless.json.base.Jackson3JsonCore;
+import com.github.wnameless.json.base.Jackson3JsonValue;
 import com.kubling.core.json.unflattener.JsonUnflattener;
 import com.kubling.query.unittest.ResourcesUtil;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.Serial;
 import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -42,7 +41,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class JsonFlattenerTest {
 
-    ObjectMapper mapper = new ObjectMapper();
+    ObjectMapper mapper = JsonMapper.builder().build();
 
     @Test
     public void testConstructorException() {
@@ -65,12 +64,11 @@ public class JsonFlattenerTest {
         assertEquals("{\"[0].a\":1,\"[1]\":2.0,\"[2].c[0]\":3,\"[2].c[1]\":4}",
                 JsonFlattener.flatten("[{\"a\":1},2.00,{\"c\":[3,4]}]"));
 
-        JsonNodeFactory f = new JsonNodeFactory(true);
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS);
-        mapper.setNodeFactory(f);
+        ObjectMapper mapper = JsonMapper.builder()
+                .enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS)
+                .build();
         JsonFlattener jsonFlattener =
-                new JsonFlattener(new JacksonJsonCore(mapper), "[{\"a\":1},2.00,{\"c\":[3,4]}]");
+                new JsonFlattener(new Jackson3JsonCore(mapper), "[{\"a\":1},2.00,{\"c\":[3,4]}]");
         assertEquals("{\"[0].a\":1,\"[1]\":2.00,\"[2].c[0]\":3,\"[2].c[1]\":4}",
                 jsonFlattener.flatten());
     }
@@ -87,11 +85,10 @@ public class JsonFlattenerTest {
     public void testFlattenAsMapWithExactFloat() throws IOException {
         String json = ResourcesUtil.getClassPathResource("test2.json");
 
-        JsonNodeFactory f = new JsonNodeFactory(true);
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS);
-        mapper.setNodeFactory(f);
-        JsonFlattener jsonFlattener = new JsonFlattener(new JacksonJsonCore(mapper), json);
+        ObjectMapper mapper = JsonMapper.builder()
+                .enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS)
+                .build();
+        JsonFlattener jsonFlattener = new JsonFlattener(new Jackson3JsonCore(mapper), json);
         assertEquals("{\"a.b\":1,\"a.c\":null,\"a.d[0]\":false,\"a.d[1]\":true,\"e\":\"f\",\"g\":2.30}",
                 jsonFlattener.flattenAsMap().toString());
     }
@@ -100,9 +97,9 @@ public class JsonFlattenerTest {
     public void testFlattenWithJsonValueBase() throws IOException {
         String json = ResourcesUtil.getClassPathResource("test2.json");
 
-        JsonNode jsonVal = new ObjectMapper().readTree(json);
+        JsonNode jsonVal = JsonMapper.builder().build().readTree(json);
         assertEquals("{\"a.b\":1,\"a.c\":null,\"a.d[0]\":false,\"a.d[1]\":true,\"e\":\"f\",\"g\":2.3}",
-                JsonFlattener.flatten(new JacksonJsonValue(jsonVal)));
+                JsonFlattener.flatten(new Jackson3JsonValue(jsonVal)));
 
         assertEquals("{\"[0].a\":1,\"[1]\":2,\"[2].c[0]\":3,\"[2].c[1]\":4}",
                 JsonFlattener.flatten("[{\"a\":1},2,{\"c\":[3,4]}]"));
@@ -112,9 +109,9 @@ public class JsonFlattenerTest {
     public void testFlattenAsMapWithJsonValueBase() throws IOException {
         String json = ResourcesUtil.getClassPathResource("test2.json");
 
-        JsonNode jsonVal = new ObjectMapper().readTree(json);
+        JsonNode jsonVal = JsonMapper.builder().build().readTree(json);
         assertEquals("{\"a.b\":1,\"a.c\":null,\"a.d[0]\":false,\"a.d[1]\":true,\"e\":\"f\",\"g\":2.3}",
-                JsonFlattener.flattenAsMap(new JacksonJsonValue(jsonVal)).toString());
+                JsonFlattener.flattenAsMap(new Jackson3JsonValue(jsonVal)).toString());
 
         assertEquals("{\"[0].a\":1,\"[1]\":2,\"[2].c[0]\":3,\"[2].c[1]\":4}",
                 JsonFlattener.flattenAsMap("[{\"a\":1},2,{\"c\":[3,4]}]").toString());
@@ -543,27 +540,22 @@ public class JsonFlattenerTest {
     public void testWithJsonCore() throws IOException {
         String json = ResourcesUtil.getClassPathResource("test_long_decimal.json");
 
-        ObjectMapper mapper = new ObjectMapper() {
-            @Serial
-            private static final long serialVersionUID = 1L;
+        ObjectMapper mapper = JsonMapper.builder()
+                .enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS)
+                .enable(DeserializationFeature.USE_BIG_INTEGER_FOR_INTS)
+                .build();
 
-            {
-                configure(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS, true);
-                configure(DeserializationFeature.USE_BIG_INTEGER_FOR_INTS, true);
-            }
-        };
-
-        JsonFlattener jf = new JsonFlattener(new JacksonJsonCore(mapper), json);
+        JsonFlattener jf = new JsonFlattener(new Jackson3JsonCore(mapper), json);
         jf.withPrintMode(PrintMode.PRETTY);
         assertEquals(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(mapper.readTree(json)),
                 jf.flatten());
 
-        jf = new JsonFlattener(new JacksonJsonCore(mapper), new StringReader(json));
+        jf = new JsonFlattener(new Jackson3JsonCore(mapper), new StringReader(json));
         jf.withPrintMode(PrintMode.PRETTY);
         assertEquals(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(mapper.readTree(json)),
                 jf.flatten());
 
-        jf = new JsonFlattener(new JacksonJsonCore(mapper), new JacksonJsonCore(mapper).parse(json));
+        jf = new JsonFlattener(new Jackson3JsonCore(mapper), new Jackson3JsonCore(mapper).parse(json));
         jf.withPrintMode(PrintMode.PRETTY);
         assertEquals(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(mapper.readTree(json)),
                 jf.flatten());

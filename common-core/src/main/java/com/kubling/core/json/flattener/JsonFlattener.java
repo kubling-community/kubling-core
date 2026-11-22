@@ -4,7 +4,7 @@
 
 package com.kubling.core.json.flattener;
 
-import com.github.wnameless.json.base.JacksonJsonCore;
+import com.github.wnameless.json.base.Jackson3JsonCore;
 import com.github.wnameless.json.base.JsonCore;
 import com.github.wnameless.json.base.JsonValueBase;
 import org.apache.commons.lang3.Strings;
@@ -130,7 +130,7 @@ public final class JsonFlattener {
      * @param json a {@link JsonValueBase}
      */
     public JsonFlattener(JsonValueBase<?> json) {
-        jsonCore = new JacksonJsonCore();
+        jsonCore = new Jackson3JsonCore();
         source = Objects.requireNonNull(json, "The validated object is null");
     }
 
@@ -151,7 +151,7 @@ public final class JsonFlattener {
      * @param json a JSON string
      */
     public JsonFlattener(String json) {
-        jsonCore = new JacksonJsonCore();
+        jsonCore = new Jackson3JsonCore();
         source = jsonCore.parse(json);
     }
 
@@ -173,7 +173,7 @@ public final class JsonFlattener {
      * @throws IOException if the jsonReader cannot be read
      */
     public JsonFlattener(Reader jsonReader) throws IOException {
-        jsonCore = new JacksonJsonCore();
+        jsonCore = new Jackson3JsonCore();
         source = jsonCore.parse(jsonReader);
     }
 

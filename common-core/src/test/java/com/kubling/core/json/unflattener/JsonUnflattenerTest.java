@@ -19,19 +19,18 @@
 
 package com.kubling.core.json.unflattener;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.wnameless.json.base.JacksonJsonCore;
+import com.github.wnameless.json.base.Jackson3JsonCore;
 import com.kubling.core.json.flattener.FlattenMode;
 import com.kubling.core.json.flattener.JsonFlattener;
 import com.kubling.core.json.flattener.PrintMode;
 import com.kubling.query.unittest.ResourcesUtil;
 import org.junit.jupiter.api.Test;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.io.IOException;
-import java.io.Serial;
 import java.io.StringReader;
 import java.util.Map;
 
@@ -39,15 +38,14 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class JsonUnflattenerTest {
 
-    ObjectMapper mapper = new ObjectMapper();
+    ObjectMapper mapper = JsonMapper.builder().build();
 
-    private Map<String, ?> toMap(String json) throws JsonProcessingException {
+    private Map<String, ?> toMap(String json) {
         return mapper.readValue(json, new TypeReference<Map<String, Object>>() {
         });
     }
 
-    private Map<String, ?> toRootMap(String json)
-            throws JsonProcessingException {
+    private Map<String, ?> toRootMap(String json) {
         return mapper.readValue("{\"" + JsonUnflattener.ROOT + "\":" + json + "}",
                 new TypeReference<Map<String, Object>>() {
                 });
@@ -59,7 +57,7 @@ public class JsonUnflattenerTest {
     }
 
     @Test
-    public void testUnflatten() throws JsonProcessingException {
+    public void testUnflatten() {
         assertEquals(
                 "{\"a\":{\"b\":1,\"c\":null,\"d\":[false,true,{\"sss\":777,\"vvv\":888}]},\"e\":\"f\",\"g\":2.3}",
                 JsonUnflattener.unflatten(
@@ -97,7 +95,7 @@ public class JsonUnflattenerTest {
     }
 
     @Test
-    public void testUnflattenAsMap() throws JsonProcessingException {
+    public void testUnflattenAsMap() {
         assertEquals(toMap(
                         "{\"a\":{\"b\":1,\"c\":null,\"d\":[false,true,{\"sss\":777,\"vvv\":888}]},\"e\":\"f\",\"g\":2.3}"),
                 JsonUnflattener.unflattenAsMap(
@@ -156,8 +154,7 @@ public class JsonUnflattenerTest {
     }
 
     @Test
-    public void testUnflattenWithKeyContainsDotAndSquareBracket()
-            throws JsonProcessingException {
+    public void testUnflattenWithKeyContainsDotAndSquareBracket() {
         assertEquals("[1,[2,3],4,{\"ab.c.[\":5}]", JsonUnflattener.unflatten(
                 "{\"[1][0]\":2,\"[ 0 ]\":1,\"[1][1]\":3,\"[2]\":4,\"[3][ \\\"ab.c.[\\\" ]\":5}"));
 
@@ -179,8 +176,7 @@ public class JsonUnflattenerTest {
     }
 
     @Test
-    public void testUnflattenWithReversedIndexes()
-            throws JsonProcessingException {
+    public void testUnflattenWithReversedIndexes() {
         String json = "{\"[1][1]\":\"B\",\"[0][0]\":\"A\"}";
 
         assertEquals("[[\"A\"],[null,\"B\"]]", JsonUnflattener.unflatten(json));
@@ -190,8 +186,7 @@ public class JsonUnflattenerTest {
     }
 
     @Test
-    public void testUnflattenWithInitComplexKey()
-            throws JsonProcessingException {
+    public void testUnflattenWithInitComplexKey() {
         String json = "{\"[\\\"b.b\\\"].aaa\":123}";
 
         assertEquals("{\"b.b\":{\"aaa\":123}}", JsonUnflattener.unflatten(json));
@@ -243,7 +238,7 @@ public class JsonUnflattenerTest {
     }
 
     @Test
-    public void testWithSeparater() throws JsonProcessingException {
+    public void testWithSeparater() {
         String json = "{\"abc\":{\"def\":123}}";
         assertEquals(json, new JsonUnflattener(new JsonFlattener(json).withSeparator("*").flatten())
                 .withSeparator('*').unflatten());
@@ -255,7 +250,7 @@ public class JsonUnflattenerTest {
     }
 
     @Test
-    public void testWithSeparaterException() throws JsonProcessingException {
+    public void testWithSeparaterException() {
         String json = "{\"abc\":{\"def\":123}}";
         try {
             new JsonUnflattener(json).withSeparator('"');
@@ -310,7 +305,7 @@ public class JsonUnflattenerTest {
     }
 
     @Test
-    public void testWithLeftAndRightBrackets() throws JsonProcessingException {
+    public void testWithLeftAndRightBrackets() {
         String json = "{\"abc[\\\"A.\\\"][0]\":123}";
         assertEquals("{\"abc\":{\"A.\":[123]}}",
                 new JsonUnflattener(json).withLeftAndRightBrackets('[', ']').unflatten());
@@ -330,8 +325,7 @@ public class JsonUnflattenerTest {
     }
 
     @Test
-    public void testWithLeftAndRightBracketsException()
-            throws JsonProcessingException {
+    public void testWithLeftAndRightBracketsException() {
         String json = "{\"abc\":{\"def\":123}}";
         try {
             new JsonUnflattener(json).withLeftAndRightBrackets('#', '#');
@@ -445,7 +439,7 @@ public class JsonUnflattenerTest {
     }
 
     @Test
-    public void testNoCache() throws JsonProcessingException {
+    public void testNoCache() {
         JsonUnflattener ju = new JsonUnflattener("{\"abc.def\":123}");
         assertNotSame(ju.unflatten(), ju.unflatten());
         assertEquals("{\"abc\":{\"def\":123}}", ju.withPrintMode(PrintMode.MINIMAL).unflatten());
@@ -469,7 +463,7 @@ public class JsonUnflattenerTest {
     }
 
     @Test
-    public void testInitByMap() throws JsonProcessingException {
+    public void testInitByMap() {
         assertEquals(new JsonUnflattener("{\"abc.def\":123}"),
                 new JsonUnflattener(toMap("{\"abc.def\":123}")));
     }
@@ -489,7 +483,7 @@ public class JsonUnflattenerTest {
     }
 
     @Test
-    public void testWithKeyTransformer() throws JsonProcessingException {
+    public void testWithKeyTransformer() {
         String json = "{\"abc.de_f\":123}";
         JsonUnflattener ju = new JsonUnflattener(json).withFlattenMode(FlattenMode.MONGODB)
                 .withKeyTransformer(key -> key.replace('_', '.'));
@@ -520,27 +514,22 @@ public class JsonUnflattenerTest {
     public void testWithJsonCore() throws IOException {
         String json = ResourcesUtil.getClassPathResource("test.json");
 
-        ObjectMapper mapper = new ObjectMapper() {
-            @Serial
-            private static final long serialVersionUID = 1L;
+        ObjectMapper mapper = JsonMapper.builder()
+                .enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS)
+                .enable(DeserializationFeature.USE_BIG_INTEGER_FOR_INTS)
+                .build();
 
-            {
-                configure(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS, true);
-                configure(DeserializationFeature.USE_BIG_INTEGER_FOR_INTS, true);
-            }
-        };
-
-        JsonUnflattener ju = new JsonUnflattener(new JacksonJsonCore(mapper), json);
+        JsonUnflattener ju = new JsonUnflattener(new Jackson3JsonCore(mapper), json);
         ju.withPrintMode(PrintMode.PRETTY);
         assertEquals(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(mapper.readTree(json)),
                 ju.unflatten());
 
-        ju = new JsonUnflattener(new JacksonJsonCore(mapper), new StringReader(json));
+        ju = new JsonUnflattener(new Jackson3JsonCore(mapper), new StringReader(json));
         ju.withPrintMode(PrintMode.PRETTY);
         assertEquals(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(mapper.readTree(json)),
                 ju.unflatten());
 
-        ju = new JsonUnflattener(new JacksonJsonCore(mapper),
+        ju = new JsonUnflattener(new Jackson3JsonCore(mapper),
                 mapper.readValue(json, new TypeReference<Map<String, Object>>() {
                 }));
         ju.withPrintMode(PrintMode.PRETTY);

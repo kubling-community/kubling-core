@@ -22,11 +22,13 @@
 
 package com.kubling.core.types;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import com.kubling.core.CorePlugin;
 import com.kubling.core.KublingRuntimeException;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.SerializationFeature;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -41,8 +43,9 @@ import java.util.Objects;
  */
 public final class JsonType extends BaseClobType implements Comparable<BaseClobType> {
 
-    private static final ObjectMapper MAPPER = new ObjectMapper()
-            .configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
+    private static final ObjectMapper MAPPER = JsonMapper.builder()
+            .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
+            .build();
 
     private transient JsonNode jsonNode;  // cache
 
@@ -90,7 +93,7 @@ public final class JsonType extends BaseClobType implements Comparable<BaseClobT
         try (final Reader r = getCharacterStream()) {
             jsonNode = MAPPER.readTree(r);
             return jsonNode;
-        } catch (IOException | SQLException e) {
+        } catch (JacksonException | IOException | SQLException e) {
             throw new KublingRuntimeException(CorePlugin.Event.KBL10085, e);
         }
     }
@@ -98,7 +101,7 @@ public final class JsonType extends BaseClobType implements Comparable<BaseClobT
     private String normalizedJsonString() {
         try {
             return MAPPER.writeValueAsString(MAPPER.treeToValue(getParsedNode(), Object.class));
-        } catch (IOException e) {
+        } catch (JacksonException e) {
             throw new KublingRuntimeException(CorePlugin.Event.KBL10085, e);
         }
     }
