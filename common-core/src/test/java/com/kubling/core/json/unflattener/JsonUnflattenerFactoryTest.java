@@ -19,9 +19,8 @@
 
 package com.kubling.core.json.unflattener;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.wnameless.json.base.GsonJsonCore;
-import com.github.wnameless.json.base.JacksonJsonCore;
+import com.github.wnameless.json.base.Jackson3JsonCore;
 import com.github.wnameless.json.base.JsonCore;
 import com.github.wnameless.json.base.JsonPrinter;
 import com.kubling.core.json.flattener.FlattenMode;
@@ -30,6 +29,7 @@ import com.kubling.query.unittest.ResourcesUtil;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.io.IOException;
 import java.io.StringReader;
@@ -81,12 +81,12 @@ public class JsonUnflattenerFactoryTest {
         String json = ResourcesUtil.getClassPathResource("test_mongo_flattened.json");
 
         JsonUnflattener ju = jsonUnflattenerFactory
-                .build((Map<String, ?>) new ObjectMapper().readValue(json, Map.class));
+                .build((Map<String, ?>) JsonMapper.builder().build().readValue(json, Map.class));
         assertEquals(expectedJson, ju.unflatten());
 
         jsonUnflattenerFactory = new JsonUnflattenerFactory(configurer);
         ju = jsonUnflattenerFactory
-                .build((Map<String, ?>) new ObjectMapper().readValue(json, Map.class));
+                .build((Map<String, ?>) JsonMapper.builder().build().readValue(json, Map.class));
         assertEquals(expectedJson, ju.unflatten());
     }
 
@@ -110,7 +110,7 @@ public class JsonUnflattenerFactoryTest {
         assertEquals(result, jsonUnflattenerFactory.hashCode());
 
         configurer = ju -> ju.withPrintMode(PrintMode.PRETTY);
-        jsonCore = new JacksonJsonCore();
+        jsonCore = new Jackson3JsonCore();
         jsonUnflattenerFactory = new JsonUnflattenerFactory(configurer, jsonCore);
         assertNotEquals(result, jsonUnflattenerFactory.hashCode());
     }
@@ -125,7 +125,7 @@ public class JsonUnflattenerFactoryTest {
         otherJsonUnflattenerFactory = new JsonUnflattenerFactory(configurer);
         assertNotEquals(jsonUnflattenerFactory, otherJsonUnflattenerFactory);
 
-        jsonCore = new JacksonJsonCore();
+        jsonCore = new Jackson3JsonCore();
         otherJsonUnflattenerFactory = new JsonUnflattenerFactory(configurer, jsonCore);
         assertNotEquals(jsonUnflattenerFactory, otherJsonUnflattenerFactory);
 
