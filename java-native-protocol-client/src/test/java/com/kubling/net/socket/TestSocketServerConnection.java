@@ -39,6 +39,7 @@ import org.mockito.stubbing.Answer;
 import java.net.InetAddress;
 import java.util.Collection;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -184,6 +185,19 @@ public class TestSocketServerConnection {
         assertThrows(CommunicationException.class, logon::ping);
     }
 
+    @Test
+    public void testAbortDropsSessionAndShutsDownInstance() throws Exception {
+        AtomicReference<SocketServerInstance> serverInstance = new AtomicReference<>();
+        SocketServerConnection connection = createConnection(
+                null, new HostInfo("0.0.0.2", 1), new Properties(), serverInstance);
+
+        connection.abort();
+
+        assertNull(connection.getLogonResult());
+        assertFalse(connection.isOpen(1));
+        Mockito.verify(serverInstance.get()).shutdown();
+    }
+
     private SocketServerConnection createConnection(final Throwable throwException)
             throws CommunicationException, ConnectionException {
         return createConnection(throwException, new Properties());
@@ -195,6 +209,12 @@ public class TestSocketServerConnection {
     }
 
     private SocketServerConnection createConnection(final Throwable t, final HostInfo hostInfo, Properties p)
+            throws CommunicationException, ConnectionException {
+        return createConnection(t, hostInfo, p, null);
+    }
+
+    private SocketServerConnection createConnection(final Throwable t, final HostInfo hostInfo, Properties p,
+                                                     AtomicReference<SocketServerInstance> serverInstance)
             throws CommunicationException, ConnectionException {
         UrlServerDiscovery discovery =
                 new UrlServerDiscovery(new KublingURL(hostInfo.getHostName(), hostInfo.getPortNumber(), false));
@@ -221,6 +241,9 @@ public class TestSocketServerConnection {
                     }
                 }
                 Mockito.when(instance.isOpen()).thenReturn(true);
+                if (serverInstance != null) {
+                    serverInstance.set(instance);
+                }
                 return instance;
             }
 

@@ -51,6 +51,11 @@ public interface SocketServerInstance {
     void send(Message message, ResultsReceiver<Object> receiver, Serializable key)
             throws CommunicationException, InterruptedException;
 
+    default void sendControl(Message message, ResultsReceiver<Object> receiver, Serializable key)
+            throws CommunicationException, InterruptedException {
+        send(message, receiver, key);
+    }
+
     void read(long timeout, TimeUnit unit, ResultsFuture<?> resultsFuture) throws TimeoutException, InterruptedException;
 
     String getServerVersion();

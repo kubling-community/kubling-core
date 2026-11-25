@@ -29,6 +29,7 @@ import com.kubling.client.SourceWarning;
 import com.kubling.client.util.ExceptionUtil;
 import com.kubling.client.util.ResultsFuture;
 import com.kubling.core.ExecutionDiagnosticException;
+import com.kubling.core.KublingComponentException;
 import com.kubling.core.util.UnitTestUtil;
 import com.kubling.net.ServerConnection;
 import org.junit.jupiter.api.Test;
@@ -39,6 +40,12 @@ import java.sql.*;
 import java.util.List;
 import java.util.Properties;
 import java.util.TimeZone;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 
@@ -405,6 +412,118 @@ public class TestStatement {
             while (counter.get() != 2) {
                 statement.wait();
             }
+        }
+    }
+
+    @Test
+    public void testTimeoutAbortsTransportWhileRequestIsBeingWritten() throws Exception {
+        ConnectionImpl conn = Mockito.mock(ConnectionImpl.class);
+        Mockito.when(conn.getConnectionProps()).thenReturn(new Properties());
+        ServerConnection serverConnection = Mockito.mock(ServerConnection.class);
+        Mockito.when(serverConnection.isLocal()).thenReturn(false);
+        Mockito.when(conn.getServerConnection()).thenReturn(serverConnection);
+        DQP dqp = Mockito.mock(DQP.class);
+        Mockito.when(conn.getDQP()).thenReturn(dqp);
+
+        CountDownLatch writing = new CountDownLatch(1);
+        CountDownLatch aborted = new CountDownLatch(1);
+        Mockito.doAnswer(invocation -> {
+            aborted.countDown();
+            return null;
+        }).when(serverConnection).abort();
+        Mockito.when(dqp.executeRequest(Mockito.anyLong(), Mockito.any())).thenAnswer(invocation -> {
+            writing.countDown();
+            assertTrue(aborted.await(2, TimeUnit.SECONDS));
+            throw new KublingComponentException("socket closed");
+        });
+
+        StatementImpl statement = new StatementImpl(
+                conn, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+        statement.setQueryTimeoutMS(20);
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        try {
+            Future<?> execution = executor.submit(() -> {
+                try {
+                    statement.submitExecute("select 'blocked write'", null);
+                } catch (SQLException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+            assertTrue(writing.await(1, TimeUnit.SECONDS));
+            assertTrue(aborted.await(2, TimeUnit.SECONDS));
+            ExecutionException exception = assertThrows(
+                    ExecutionException.class,
+                    () -> execution.get(2, TimeUnit.SECONDS));
+            KublingSQLException timeout = assertInstanceOf(
+                    KublingSQLException.class, exception.getCause().getCause());
+            assertEquals(JDBCPlugin.Util.getString("MMStatement.Timeout_before_complete"), timeout.getMessage());
+            assertEquals(-1, statement.getCurrentRequestID());
+            Mockito.verify(dqp, Mockito.never()).cancelRequest(Mockito.anyLong());
+        } finally {
+            executor.shutdownNow();
+            assertTrue(executor.awaitTermination(2, TimeUnit.SECONDS));
+        }
+    }
+
+    @Test
+    public void testManualCancelDuringRequestWriteClosesCleanly() throws Exception {
+        ServerConnection serverConnection = Mockito.mock(ServerConnection.class);
+        DQP dqp = Mockito.mock(DQP.class);
+        Mockito.when(serverConnection.getService(DQP.class)).thenReturn(dqp);
+        Mockito.when(serverConnection.isLocal()).thenReturn(false);
+
+        CountDownLatch writing = new CountDownLatch(1);
+        CountDownLatch aborted = new CountDownLatch(1);
+        Mockito.doAnswer(invocation -> {
+            aborted.countDown();
+            return null;
+        }).when(serverConnection).abort();
+        Mockito.when(dqp.executeRequest(Mockito.anyLong(), Mockito.any())).thenAnswer(invocation -> {
+            writing.countDown();
+            assertTrue(aborted.await(2, TimeUnit.SECONDS));
+            throw new KublingComponentException("socket closed");
+        });
+        Mockito.when(dqp.closeRequest(Mockito.anyLong()))
+                .thenThrow(new KublingComponentException("server connection is closed"));
+
+        ConnectionImpl connection = new ConnectionImpl(serverConnection, new Properties(), "x");
+        StatementImpl statement = connection.createStatement();
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        try {
+            Future<SQLException> execution = executor.submit(() -> assertThrows(
+                    SQLException.class,
+                    () -> statement.submitExecute("select 'blocked write'", null)));
+
+            assertTrue(writing.await(1, TimeUnit.SECONDS));
+            statement.cancel();
+            assertTrue(aborted.await(1, TimeUnit.SECONDS));
+            assertNotNull(execution.get(2, TimeUnit.SECONDS));
+
+            assertDoesNotThrow(statement::close);
+            assertDoesNotThrow(connection::close);
+            Mockito.verify(dqp, Mockito.never()).cancelRequest(Mockito.anyLong());
+            Mockito.verify(dqp, Mockito.never()).closeRequest(Mockito.anyLong());
+        } finally {
+            executor.shutdownNow();
+            assertTrue(executor.awaitTermination(2, TimeUnit.SECONDS));
+        }
+
+        ServerConnection replacementServerConnection = Mockito.mock(ServerConnection.class);
+        DQP replacementDqp = Mockito.mock(DQP.class);
+        Mockito.when(replacementServerConnection.getService(DQP.class)).thenReturn(replacementDqp);
+        Mockito.when(replacementServerConnection.isLocal()).thenReturn(false);
+        ResultsMessage response = new ResultsMessage();
+        response.setUpdateResult(true);
+        response.setResults(new List<?>[]{List.of(1)});
+        ResultsFuture<ResultsMessage> responseFuture = new ResultsFuture<>();
+        responseFuture.getResultsReceiver().receiveResults(response);
+        Mockito.when(replacementDqp.executeRequest(Mockito.anyLong(), Mockito.any()))
+                .thenReturn(responseFuture);
+
+        try (ConnectionImpl replacementConnection = new ConnectionImpl(
+                replacementServerConnection, new Properties(), "x");
+             StatementImpl replacementStatement = replacementConnection.createStatement()) {
+            assertEquals(1, replacementStatement.executeUpdate("update x set y = 1"));
         }
     }
 

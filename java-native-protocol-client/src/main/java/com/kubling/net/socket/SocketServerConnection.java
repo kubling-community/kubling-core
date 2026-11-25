@@ -279,6 +279,16 @@ public class SocketServerConnection implements ServerConnection {
         this.closed = true;
     }
 
+    @Override
+    public synchronized void abort() {
+        if (this.closed) {
+            return;
+        }
+        disconnect();
+        closeServerInstance();
+        this.closed = true;
+    }
+
     private void logoff() {
         if (this.logonResult == null) {
             return;

@@ -29,14 +29,25 @@ import com.kubling.client.ResultsMessage;
 import com.kubling.client.security.LogonResult;
 import com.kubling.client.util.ResultsFuture;
 import com.kubling.core.KublingException;
+import com.kubling.core.types.BlobImpl;
 import com.kubling.core.types.DataTypeManager;
+import com.kubling.core.util.AccessibleBufferedInputStream;
 import com.kubling.net.ServerConnection;
+import com.kubling.net.socket.Message;
+import com.kubling.net.socket.ServiceInvocationStruct;
+import com.kubling.netty.handler.codec.serialization.ObjectDecoderInputStream;
+import com.kubling.netty.handler.codec.serialization.ObjectEncoderOutputStream;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
+import java.io.InputStream;
 import java.sql.*;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -228,6 +239,90 @@ public class TestPreparedStatement {
     public void testSetBlob() throws Exception {
         PreparedStatementImpl stmt = getMMPreparedStatement("delete from table where col=?");
         stmt.setBlob(1, (Blob) null);
+    }
+
+    @Test
+    public void testSetBlobInputStreamProtocolRoundTrip() throws Exception {
+        assertBlobProtocolRoundTrip(1024);
+        assertBlobProtocolRoundTrip(16 * 1024 * 1024);
+    }
+
+    private void assertBlobProtocolRoundTrip(int size) throws Exception {
+        byte[] expected = new byte[size];
+        for (int i = 0; i < expected.length; i++) {
+            expected[i] = (byte) (i * 31 + 17);
+        }
+
+        ConnectionImpl connection = Mockito.mock(ConnectionImpl.class);
+        Mockito.when(connection.getConnectionProps()).thenReturn(new Properties());
+        ServerConnection serverConnection = Mockito.mock(ServerConnection.class);
+        LogonResult logonResult = Mockito.mock(LogonResult.class);
+        Mockito.when(connection.getServerConnection()).thenReturn(serverConnection);
+        Mockito.when(serverConnection.getLogonResult()).thenReturn(logonResult);
+        Mockito.when(logonResult.getTimeZone()).thenReturn(TimeZone.getDefault());
+        DQP dqp = Mockito.mock(DQP.class);
+        Mockito.when(connection.getDQP()).thenReturn(dqp);
+
+        AtomicReference<BlobImpl> responseBlob = new AtomicReference<>();
+        Mockito.when(dqp.executeRequest(ArgumentMatchers.anyLong(), ArgumentMatchers.any()))
+                .thenAnswer(invocation -> {
+                    RequestMessage request = invocation.getArgument(1);
+                    Message requestEnvelope = new Message();
+                    requestEnvelope.setContents(new ServiceInvocationStruct(
+                            new Object[]{invocation.getArgument(0), request}, "executeRequest", DQP.class));
+                    ServiceInvocationStruct decodedInvocation = (ServiceInvocationStruct)
+                            protocolRoundTrip(requestEnvelope).getContents();
+                    RequestMessage decodedRequest = (RequestMessage) decodedInvocation.args[1];
+                    BlobImpl requestBlob = assertInstanceOf(
+                            BlobImpl.class, decodedRequest.getParameterValues().getFirst());
+
+                    ResultsMessage response = new ResultsMessage();
+                    response.setResults(new List<?>[]{List.of(requestBlob)});
+                    response.setColumnNames(new String[]{"blob_value"});
+                    response.setDataTypes(new String[]{DataTypeManager.DefaultDataTypes.BLOB});
+                    response.setFirstRow(1);
+                    response.setLastRow(1);
+                    response.setFinalRow(1);
+                    Message responseEnvelope = new Message();
+                    responseEnvelope.setContents(response);
+                    ResultsMessage decodedResponse = (ResultsMessage)
+                            protocolRoundTrip(responseEnvelope).getContents();
+                    responseBlob.set(assertInstanceOf(
+                            BlobImpl.class, decodedResponse.getResultsList().getFirst().getFirst()));
+                    requestBlob.getStreamFactory().free();
+
+                    ResultsFuture<ResultsMessage> result = new ResultsFuture<>();
+                    result.getResultsReceiver().receiveResults(decodedResponse);
+                    return result;
+                });
+
+        PreparedStatementImpl statement = getMMPreparedStatement(connection, "select ?");
+        statement.setBlob(1, new ByteArrayInputStream(expected));
+        try (ResultSet resultSet = statement.executeQuery()) {
+            assertTrue(resultSet.next());
+            try (InputStream stream = resultSet.getBlob(1).getBinaryStream()) {
+                assertArrayEquals(expected, stream.readAllBytes());
+            }
+        } finally {
+            BlobImpl blob = responseBlob.get();
+            if (blob != null) {
+                blob.getStreamFactory().free();
+            }
+        }
+    }
+
+    private Message protocolRoundTrip(Message message) throws Exception {
+        ByteArrayOutputStream encoded = new ByteArrayOutputStream();
+        try (ObjectEncoderOutputStream out = new ObjectEncoderOutputStream(
+                new DataOutputStream(encoded), 512)) {
+            out.writeObject(message);
+        }
+        try (ObjectDecoderInputStream in = new ObjectDecoderInputStream(
+                new AccessibleBufferedInputStream(
+                        new ByteArrayInputStream(encoded.toByteArray()), 32 * 1024),
+                getClass().getClassLoader(), 1024 * 1024)) {
+            return (Message) in.readObject();
+        }
     }
 
     @Test

@@ -22,6 +22,9 @@
 
 package com.kubling.net.socket;
 
+import com.kubling.client.DQP;
+import com.kubling.client.RequestMessage;
+import com.kubling.client.ResultsMessage;
 import com.kubling.client.security.ILogon;
 import com.kubling.client.util.ResultsFuture;
 import com.kubling.net.CommunicationException;
@@ -32,14 +35,21 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.SocketAddress;
 import java.net.SocketTimeoutException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 @SuppressWarnings("nls")
@@ -47,8 +57,10 @@ public class TestSocketServerInstanceImpl {
 
     private static class FakeObjectChannel implements ObjectChannel, ObjectChannelFactory {
         List<Object> msgs = new ArrayList<>();
+        List<Object> controlMsgs = new ArrayList<>();
         List<?> readMsgs;
         int readCount;
+        boolean closed;
 
         public FakeObjectChannel(List<?> readMsgs) {
             this.readMsgs = readMsgs;
@@ -56,18 +68,26 @@ public class TestSocketServerInstanceImpl {
 
         @Override
         public void close() {
-
+            closed = true;
         }
 
         @Override
         public boolean isOpen() {
-            return true;
+            return !closed;
         }
 
         @Override
         public Future<?> write(Object msg) {
             msgs.add(msg);
             ResultsFuture<?> result = new ResultsFuture<Void>();
+            result.getResultsReceiver().receiveResults(null);
+            return result;
+        }
+
+        @Override
+        public Future<?> writeControl(Object msg) {
+            controlMsgs.add(msg);
+            ResultsFuture<Void> result = new ResultsFuture<>();
             result.getResultsReceiver().receiveResults(null);
             return result;
         }
@@ -151,6 +171,41 @@ public class TestSocketServerInstanceImpl {
         } catch (SingleInstanceCommunicationException e) {
             assertInstanceOf(TimeoutException.class, e.getCause());
         }
+    }
+
+    @Test
+    public void testCancelRequestUsesControlWriteWithoutWaitingForResponse() throws Exception {
+        FakeObjectChannel channel =
+                new FakeObjectChannel(Arrays.asList(new Handshake(), new SocketTimeoutException()));
+        SocketServerInstanceImpl instance = createInstance(channel);
+
+        DQP dqp = instance.getService(DQP.class);
+        assertTimeoutPreemptively(Duration.ofSeconds(1), () -> assertTrue(dqp.cancelRequest(7)));
+
+        assertEquals(1, channel.controlMsgs.size());
+        Message message = assertInstanceOf(Message.class, channel.controlMsgs.getFirst());
+        ServiceInvocationStruct invocation =
+                assertInstanceOf(ServiceInvocationStruct.class, message.getContents());
+        assertEquals("cancelRequest", invocation.methodName);
+        assertEquals(7L, invocation.args[0]);
+
+        instance.shutdown();
+        assertFalse(channel.isOpen());
+    }
+
+    @Test
+    public void testShutdownCompletesPendingInvocation() throws Exception {
+        FakeObjectChannel channel =
+                new FakeObjectChannel(Arrays.asList(new Handshake(), new SocketTimeoutException()));
+        SocketServerInstanceImpl instance = createInstance(channel);
+        ResultsFuture<ResultsMessage> pending = instance.getService(DQP.class)
+                .executeRequest(9, new RequestMessage());
+
+        instance.shutdown();
+
+        assertTimeoutPreemptively(Duration.ofSeconds(1),
+                () -> assertThrows(ExecutionException.class, pending::get));
+        assertFalse(channel.isOpen());
     }
 
 }

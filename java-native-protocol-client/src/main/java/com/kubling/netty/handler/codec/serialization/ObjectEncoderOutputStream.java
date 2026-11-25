@@ -37,6 +37,8 @@ public class ObjectEncoderOutputStream extends ObjectOutputStream {
 
     private final DataOutputStream out;
     private final MultiArrayOutputStream baos;
+    private volatile InputStream activeStream;
+    private volatile boolean aborted;
 
     public ObjectEncoderOutputStream(DataOutputStream out, int initialBufferSize)
             throws SecurityException, IOException {
@@ -47,6 +49,9 @@ public class ObjectEncoderOutputStream extends ObjectOutputStream {
 
     @Override
     final protected void writeObjectOverride(Object obj) throws IOException {
+        if (aborted) {
+            throw new InterruptedIOException("Protocol stream was aborted.");
+        }
         baos.reset(4);
         CompactObjectOutputStream oout = new CompactObjectOutputStream(baos);
         oout.writeObject(obj);
@@ -66,24 +71,32 @@ public class ObjectEncoderOutputStream extends ObjectOutputStream {
             baos.reset(0);
             byte[] chunk = new byte[(1 << 16)];
             for (InputStream is : oout.getStreams()) {
-                while (true) {
-                    int bytes = is.read(chunk, 2, chunk.length - 2);
-                    int toWrite = Math.max(0, bytes);
-                    chunk[1] = (byte) (toWrite >>> 0);
-                    chunk[0] = (byte) (toWrite >>> 8);
-                    if (baos.getIndex() + toWrite + 2 > b.length) {
-                        //exceeds the first buffer
-                        baos.writeTo(out);
-                        baos.reset(0);
-                        out.write(chunk, 0, toWrite + 2);
-                    } else {
-                        //buffer the small chunk
-                        baos.write(chunk, 0, toWrite + 2);
+                activeStream = is;
+                try {
+                    if (aborted) {
+                        throw new InterruptedIOException("Protocol stream was aborted.");
                     }
-                    if (bytes < 1) {
-                        is.close();
-                        break;
+                    while (true) {
+                        int bytes = is.read(chunk, 2, chunk.length - 2);
+                        int toWrite = Math.max(0, bytes);
+                        chunk[1] = (byte) (toWrite >>> 0);
+                        chunk[0] = (byte) (toWrite >>> 8);
+                        if (baos.getIndex() + toWrite + 2 > b.length) {
+                            //exceeds the first buffer
+                            baos.writeTo(out);
+                            baos.reset(0);
+                            out.write(chunk, 0, toWrite + 2);
+                        } else {
+                            //buffer the small chunk
+                            baos.write(chunk, 0, toWrite + 2);
+                        }
+                        if (bytes < 1) {
+                            break;
+                        }
                     }
+                } finally {
+                    activeStream = null;
+                    is.close();
                 }
             }
             if (baos.getIndex() > 0) {
@@ -94,7 +107,25 @@ public class ObjectEncoderOutputStream extends ObjectOutputStream {
 
     @Override
     public void close() throws IOException {
+        abort();
         out.close();
+    }
+
+    /**
+     * Closes the stream currently being copied into the protocol message. This
+     * allows transport cancellation to unblock a writer that is waiting on a
+     * streaming parameter.
+     */
+    public void abort() {
+        aborted = true;
+        InputStream stream = activeStream;
+        if (stream != null) {
+            try {
+                stream.close();
+            } catch (IOException e) {
+                // The socket close will still abort the transport.
+            }
+        }
     }
 
     @Override

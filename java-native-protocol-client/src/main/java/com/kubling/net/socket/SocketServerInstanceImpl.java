@@ -22,6 +22,7 @@
 
 package com.kubling.net.socket;
 
+import com.kubling.client.DQP;
 import com.kubling.client.security.Secure;
 import com.kubling.client.util.ExceptionHolder;
 import com.kubling.client.util.ExceptionUtil;
@@ -45,9 +46,7 @@ import java.lang.reflect.Proxy;
 import java.net.InetAddress;
 import java.net.SocketTimeoutException;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
@@ -197,13 +196,24 @@ public class SocketServerInstanceImpl implements SocketServerInstance {
 
     public void send(Message message, ResultsReceiver<Object> listener, Serializable messageKey)
             throws CommunicationException, InterruptedException {
+        send(message, listener, messageKey, false);
+    }
+
+    @Override
+    public void sendControl(Message message, ResultsReceiver<Object> listener, Serializable messageKey)
+            throws CommunicationException, InterruptedException {
+        send(message, listener, messageKey, true);
+    }
+
+    private void send(Message message, ResultsReceiver<Object> listener, Serializable messageKey,
+                      boolean control) throws CommunicationException, InterruptedException {
         if (listener != null) {
             asynchronousListeners.put(messageKey, listener);
         }
         message.setMessageKey(messageKey);
         boolean success = false;
         try {
-            Future<?> writeFuture = socketChannel.write(message);
+            Future<?> writeFuture = control ? socketChannel.writeControl(message) : socketChannel.write(message);
             writeFuture.get(); //client writes are blocking to ensure proper failure handling
             success = true;
         } catch (ExecutionException e) {
@@ -236,11 +246,10 @@ public class SocketServerInstanceImpl implements SocketServerInstance {
             e = new SingleInstanceCommunicationException(e);
         }
 
-        Set<Map.Entry<Serializable, ResultsReceiver<Object>>> entries = this.asynchronousListeners.entrySet();
-        for (Iterator<Map.Entry<Serializable, ResultsReceiver<Object>>> iterator = entries.iterator(); iterator.hasNext(); ) {
-            Map.Entry<Serializable, ResultsReceiver<Object>> entry = iterator.next();
-            iterator.remove();
-            entry.getValue().exceptionOccurred(e);
+        for (Map.Entry<Serializable, ResultsReceiver<Object>> entry : this.asynchronousListeners.entrySet()) {
+            if (this.asynchronousListeners.remove(entry.getKey(), entry.getValue())) {
+                entry.getValue().exceptionOccurred(e);
+            }
         }
     }
 
@@ -287,6 +296,7 @@ public class SocketServerInstanceImpl implements SocketServerInstance {
 
     public void shutdown() {
         socketChannel.close();
+        exceptionOccurred(new EOFException("Socket channel closed."));
     }
 
     /**
@@ -422,8 +432,16 @@ public class SocketServerInstanceImpl implements SocketServerInstance {
                     }
                 };
                 final ResultsReceiver<Object> receiver = results.getResultsReceiver();
-
-                instance.send(message, receiver, MESSAGE_ID.getAndIncrement());
+                boolean cancellation = targetClass == DQP.class
+                        && method.getName().equals("cancelRequest");
+                if (cancellation) {
+                    instance.sendControl(message, null, MESSAGE_ID.getAndIncrement());
+                } else {
+                    instance.send(message, receiver, MESSAGE_ID.getAndIncrement());
+                }
+                if (cancellation) {
+                    return Boolean.TRUE;
+                }
                 if (ResultsFuture.class.isAssignableFrom(method.getReturnType())) {
                     return results;
                 }
