@@ -126,7 +126,19 @@ public class ObjectDecoderInputStream extends ObjectInputStream {
                     public InputStream getInputStream() throws IOException {
                         return new BufferedInputStream(new FileInputStream(f));
                     }
-                    
+
+                    @Override
+                    public void free() throws IOException {
+                        if (!f.delete() && f.exists()) {
+                            throw new IOException("Unable to delete protocol stream file: " + f);
+                        }
+                    }
+
+                    @Override
+                    public StorageMode getStorageMode() {
+                        return StorageMode.FREE;
+                    }
+
                 });
                 this.stream = new FileOutputStream(f);
             }

@@ -35,6 +35,15 @@ public interface ObjectChannel {
 
     Future<?> write(Object msg);
 
+    /**
+     * Writes a control message without waiting behind an in-progress payload.
+     * Implementations may abort the channel when the message cannot be written
+     * immediately so that cancellation remains bounded.
+     */
+    default Future<?> writeControl(Object msg) {
+        return write(msg);
+    }
+
     boolean isOpen();
 
     void close();

@@ -44,6 +44,11 @@ public class CompactObjectInputStream extends ObjectInputStream {
     public CompactObjectInputStream(InputStream in, ClassLoader classLoader) throws IOException {
         super(in);
         this.classLoader = classLoader;
+        ObjectInputFilter configuredFilter = getObjectInputFilter();
+        ObjectInputFilter safeClassFilter = ObjectInputStreamWithClassloader.safeClassFilter();
+        setObjectInputFilter(configuredFilter == null
+                ? safeClassFilter
+                : ObjectInputFilter.merge(configuredFilter, safeClassFilter));
     }
 
     @Override
@@ -100,6 +105,15 @@ public class CompactObjectInputStream extends ObjectInputStream {
         } catch (ClassNotFoundException ex) {
             return super.resolveClass(desc);
         }
+    }
+
+    @Override
+    protected Class<?> resolveProxyClass(String[] interfaces)
+            throws IOException, ClassNotFoundException {
+        for (String interfaceName : interfaces) {
+            ObjectInputStreamWithClassloader.checkClass(interfaceName);
+        }
+        return super.resolveProxyClass(interfaces);
     }
 
 }

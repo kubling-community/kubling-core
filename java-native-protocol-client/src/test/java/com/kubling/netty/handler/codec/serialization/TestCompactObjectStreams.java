@@ -40,10 +40,13 @@ import com.kubling.core.KublingComponentException;
 import com.kubling.core.KublingException;
 import com.kubling.core.KublingProcessingException;
 import com.kubling.core.KublingRuntimeException;
+import com.kubling.core.types.ArrayImpl;
+import com.kubling.core.types.BinaryType;
 import com.kubling.core.types.BlobImpl;
 import com.kubling.core.types.BlobType;
 import com.kubling.core.types.ClobImpl;
 import com.kubling.core.types.ClobType;
+import com.kubling.core.types.DataTypeManager;
 import com.kubling.core.types.SQLXMLImpl;
 import com.kubling.core.types.XMLType;
 import com.kubling.core.util.ObjectInputStreamWithClassloader;
@@ -60,19 +63,38 @@ import java.io.InputStream;
 import java.io.InvalidClassException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
+import java.io.Serializable;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.sql.Time;
+import java.sql.Timestamp;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class TestCompactObjectStreams {
 
-    private static final class AdditionalKnownType implements Externalizable {
+    public static class AdditionalKnownBase implements Serializable {
+        private static final long serialVersionUID = 1L;
+    }
+
+    public static final class AdditionalKnownType extends AdditionalKnownBase implements Externalizable {
+
+        public AdditionalKnownType() {
+        }
+
         @Override
         public void writeExternal(ObjectOutput out) {
         }
@@ -166,9 +188,156 @@ public class TestCompactObjectStreams {
     }
 
     @Test
+    public void testNativeScalarValuesRoundTrip() throws Exception {
+        Timestamp timestamp = new Timestamp(1_700_000_000_123L);
+        timestamp.setNanos(123_456_789);
+        Object[] values = {
+                "value",
+                true,
+                (byte) 1,
+                (short) 2,
+                'c',
+                3,
+                4L,
+                new BigInteger("12345678901234567890"),
+                5.5F,
+                6.5D,
+                new BigDecimal("1234567890.0123456789"),
+                new java.util.Date(1_700_000_000_123L),
+                new java.sql.Date(1_700_000_000_123L),
+                new Time(1_700_000_000_123L),
+                timestamp,
+                new BinaryType(new byte[]{1, 2, 3})
+        };
+
+        for (Object value : values) {
+            Object result = roundTrip(value);
+            assertEquals(value.getClass(), result.getClass());
+            assertEquals(value, result, value.getClass().getName());
+        }
+    }
+
+    @Test
+    public void testNativeTemporalArrayRoundTrip() throws Exception {
+        ArrayImpl value = new ArrayImpl(
+                new java.util.Date(1_700_000_000_123L),
+                new java.sql.Date(1_700_000_000_123L),
+                new Time(1_700_000_000_123L),
+                new Timestamp(1_700_000_000_123L));
+
+        ArrayImpl result = roundTrip(value);
+        assertArrayEquals(value.getValues(), result.getValues());
+    }
+
+    @Test
+    public void testNativeTemporalParametersRoundTrip() throws Exception {
+        Timestamp timestamp = new Timestamp(1_700_000_000_123L);
+        timestamp.setNanos(123_456_789);
+        List<?> parameters = List.of(
+                new java.util.Date(1_700_000_000_123L),
+                new java.sql.Date(1_700_000_000_123L),
+                new Time(1_700_000_000_123L),
+                timestamp);
+        RequestMessage request = new RequestMessage("SELECT ?, ?, ?, ?");
+        request.setStatementType(RequestMessage.StatementType.PREPARED);
+        request.setParameterValues(parameters);
+
+        RequestMessage result = roundTrip(request);
+
+        assertEquals(parameters, result.getParameterValues());
+    }
+
+    @Test
+    public void testNativeScalarResultsRoundTrip() throws Exception {
+        Timestamp timestamp = new Timestamp(1_700_000_000_123L);
+        timestamp.setNanos(123_456_789);
+        String[] types = {
+                DataTypeManager.DefaultDataTypes.BIG_DECIMAL,
+                DataTypeManager.DefaultDataTypes.BIG_INTEGER,
+                DataTypeManager.DefaultDataTypes.BOOLEAN,
+                DataTypeManager.DefaultDataTypes.BYTE,
+                DataTypeManager.DefaultDataTypes.CHAR,
+                DataTypeManager.DefaultDataTypes.DATE,
+                DataTypeManager.DefaultDataTypes.DOUBLE,
+                DataTypeManager.DefaultDataTypes.FLOAT,
+                DataTypeManager.DefaultDataTypes.INTEGER,
+                DataTypeManager.DefaultDataTypes.LONG,
+                DataTypeManager.DefaultDataTypes.SHORT,
+                DataTypeManager.DefaultDataTypes.STRING,
+                DataTypeManager.DefaultDataTypes.TIME,
+                DataTypeManager.DefaultDataTypes.TIMESTAMP,
+                DataTypeManager.DefaultDataTypes.OBJECT,
+                DataTypeManager.DefaultDataTypes.VARBINARY
+        };
+        List<?> row = List.of(
+                new BigDecimal("1234567890.0123456789"),
+                new BigInteger("12345678901234567890"),
+                true,
+                (byte) 1,
+                'c',
+                new java.sql.Date(1_700_000_000_123L),
+                6.5D,
+                5.5F,
+                3,
+                4L,
+                (short) 2,
+                "value",
+                new Time(1_700_000_000_123L),
+                timestamp,
+                new java.util.Date(1_700_000_000_123L),
+                new BinaryType(new byte[]{1, 2, 3}));
+        ResultsMessage message = new ResultsMessage();
+        message.setColumnNames(types);
+        message.setDataTypes(types);
+        message.setResults(new List<?>[]{row});
+
+        ResultsMessage result = roundTrip(message);
+
+        assertEquals(row, result.getResultsList().getFirst());
+    }
+
+    @Test
+    public void testProtocolFilterIsInstalled() throws Exception {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (CompactObjectOutputStream out = new CompactObjectOutputStream(bytes)) {
+            out.writeObject(new ArrayList<>());
+        }
+        try (CompactObjectInputStream in = new CompactObjectInputStream(
+                new ByteArrayInputStream(bytes.toByteArray()), getClass().getClassLoader())) {
+            assertSame(ObjectInputStreamWithClassloader.safeClassFilter(), in.getObjectInputFilter());
+            assertEquals(new ArrayList<>(), in.readObject());
+        }
+    }
+
+    @Test
     public void testAddingKnownClassRegistersItAsSafe() throws Exception {
         CompactObjectOutputStream.addKnownClass(AdditionalKnownType.class, (byte) 100);
         ObjectInputStreamWithClassloader.checkClass(AdditionalKnownType.class.getName());
+        ObjectInputStreamWithClassloader.checkClass(AdditionalKnownBase.class.getName());
+        assertInstanceOf(AdditionalKnownType.class, roundTrip(new AdditionalKnownType()));
+    }
+
+    @Test
+    public void testKnownProtocolSerializableHierarchiesAreSafe() {
+        for (Class<?> type : CompactObjectOutputStream.KNOWN_CLASSES.keySet()) {
+            assertSafeSerializableHierarchy(type);
+        }
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testConfiguredSafeClassSerializableHierarchiesAreSafe() throws Exception {
+        CompactObjectOutputStream.KNOWN_CLASSES.size();
+        Field safeClassesField = ObjectInputStreamWithClassloader.class.getDeclaredField("safeClasses");
+        safeClassesField.setAccessible(true);
+        Set<String> safeClassNames = (Set<String>) safeClassesField.get(null);
+
+        for (String safeClassName : safeClassNames) {
+            Class<?> type = assertDoesNotThrow(
+                    () -> Class.forName(safeClassName, false, getClass().getClassLoader()),
+                    safeClassName);
+            assertSafeSerializableHierarchy(type);
+        }
     }
 
     @Test
@@ -188,6 +357,7 @@ public class TestCompactObjectStreams {
                 new ByteArrayInputStream(bytes.toByteArray()), new IsolatedClassLoader())) {
             InvalidClassException exception = assertThrows(InvalidClassException.class, in::readObject);
             assertInstanceOf(ClassNotFoundException.class, exception.getCause());
+            assertTrue(exception.getCause().getMessage().contains("Blocked class:"));
         }
         assertFalse(InitializationTracker.initialized);
     }
@@ -244,5 +414,15 @@ public class TestCompactObjectStreams {
                 new ByteArrayInputStream(bytes.toByteArray()), TestCompactObjectStreams.class.getClassLoader())) {
             return (T) in.readObject();
         }
+    }
+
+    private void assertSafeSerializableHierarchy(Class<?> type) {
+        Class<?> current = type;
+        do {
+            Class<?> safeType = current;
+            assertDoesNotThrow(() -> ObjectInputStreamWithClassloader.checkClass(safeType.getName()),
+                    safeType.getName());
+            current = current.getSuperclass();
+        } while (current != null && Serializable.class.isAssignableFrom(current));
     }
 }

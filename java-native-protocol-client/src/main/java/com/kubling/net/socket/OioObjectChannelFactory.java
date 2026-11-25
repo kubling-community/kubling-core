@@ -39,6 +39,7 @@ import java.net.SocketTimeoutException;
 import java.security.GeneralSecurityException;
 import java.util.Properties;
 import java.util.concurrent.Future;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 
 
@@ -53,8 +54,9 @@ public final class OioObjectChannelFactory implements ObjectChannelFactory {
 
     final static class OioObjectChannel implements ObjectChannel {
         private final Socket socket;
-        private final ObjectOutputStream outputStream;
+        private final ObjectEncoderOutputStream outputStream;
         private final ObjectInputStream inputStream;
+        private final ReentrantLock writeLock = new ReentrantLock();
 
         private OioObjectChannel(Socket socket, int maxObjectSize) throws IOException {
             log.fine("creating new OioObjectChannel");
@@ -69,10 +71,10 @@ public final class OioObjectChannelFactory implements ObjectChannelFactory {
         @Override
         public void close() {
             log.finer("closing socket");
-            try {
-                outputStream.flush();
-            } catch (IOException e) {
-                // ignore
+            outputStream.abort();
+            abortSocket();
+            if (!writeLock.tryLock()) {
+                return;
             }
             try {
                 outputStream.close();
@@ -83,7 +85,12 @@ public final class OioObjectChannelFactory implements ObjectChannelFactory {
                 inputStream.close();
             } catch (IOException e) {
                 // ignore
+            } finally {
+                writeLock.unlock();
             }
+        }
+
+        private void abortSocket() {
             try {
                 socket.close();
             } catch (IOException e) {
@@ -125,9 +132,28 @@ public final class OioObjectChannelFactory implements ObjectChannelFactory {
         }
 
         @Override
-        public synchronized Future<?> write(Object msg) {
+        public Future<?> write(Object msg) {
+            return write(msg, false);
+        }
+
+        @Override
+        public Future<?> writeControl(Object msg) {
+            return write(msg, true);
+        }
+
+        private Future<?> write(Object msg, boolean control) {
             log.finer("writing message to socket");
             ResultsFuture<Void> result = new ResultsFuture<>();
+            if (control) {
+                if (!writeLock.tryLock()) {
+                    close();
+                    result.getResultsReceiver().exceptionOccurred(
+                            new IOException("Cancellation could not overtake an in-progress socket write; channel aborted."));
+                    return result;
+                }
+            } else {
+                writeLock.lock();
+            }
             try {
                 outputStream.writeObject(msg);
                 outputStream.flush();
@@ -136,6 +162,8 @@ public final class OioObjectChannelFactory implements ObjectChannelFactory {
             } catch (IOException e) {
                 close();
                 result.getResultsReceiver().exceptionOccurred(e);
+            } finally {
+                writeLock.unlock();
             }
             return result;
         }

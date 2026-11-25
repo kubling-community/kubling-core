@@ -32,6 +32,14 @@ public interface ServerConnection {
 
     void close();
 
+    /**
+     * Aborts the transport without attempting a protocol logoff. This is used
+     * when a request times out while its bytes are still being written.
+     */
+    default void abort() {
+        close();
+    }
+
     boolean isOpen(long msToTest);
 
     LogonResult getLogonResult();

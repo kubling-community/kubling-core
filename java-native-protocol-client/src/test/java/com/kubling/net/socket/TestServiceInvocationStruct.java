@@ -30,6 +30,9 @@ import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.Serializable;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Proxy;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -40,6 +43,21 @@ public class TestServiceInvocationStruct {
     }
 
     private interface UnregisteredService {
+    }
+
+    private interface RegisteredProxy {
+        String value();
+    }
+
+    private interface UnregisteredProxy {
+        String value();
+    }
+
+    private static final class SerializableHandler implements InvocationHandler, Serializable {
+        @Override
+        public Object invoke(Object proxy, java.lang.reflect.Method method, Object[] args) {
+            return "value";
+        }
     }
 
     @Test
@@ -81,14 +99,47 @@ public class TestServiceInvocationStruct {
         }
     }
 
+    @Test
+    public void testRegisteredProxyRoundTrip() throws Exception {
+        ObjectInputStreamWithClassloader.registerSafeClass(RegisteredProxy.class);
+        ObjectInputStreamWithClassloader.registerSafeClass(SerializableHandler.class);
+        RegisteredProxy proxy = (RegisteredProxy) Proxy.newProxyInstance(
+                getClass().getClassLoader(), new Class[]{RegisteredProxy.class}, new SerializableHandler());
+
+        RegisteredProxy result = roundTripObject(proxy);
+
+        assertEquals("value", result.value());
+    }
+
+    @Test
+    public void testUnregisteredProxyIsRejected() throws Exception {
+        ObjectInputStreamWithClassloader.registerSafeClass(SerializableHandler.class);
+        UnregisteredProxy proxy = (UnregisteredProxy) Proxy.newProxyInstance(
+                getClass().getClassLoader(), new Class[]{UnregisteredProxy.class}, new SerializableHandler());
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (CompactObjectOutputStream out = new CompactObjectOutputStream(bytes)) {
+            out.writeObject(proxy);
+        }
+        try (CompactObjectInputStream in = new CompactObjectInputStream(
+                new ByteArrayInputStream(bytes.toByteArray()), getClass().getClassLoader())) {
+            ClassNotFoundException exception = assertThrows(ClassNotFoundException.class, in::readObject);
+            assertTrue(exception.getMessage().contains("Blocked class:"));
+        }
+    }
+
     private ServiceInvocationStruct roundTrip(ServiceInvocationStruct value) throws Exception {
+        return roundTripObject(value);
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T> T roundTripObject(T value) throws Exception {
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         try (CompactObjectOutputStream out = new CompactObjectOutputStream(bytes)) {
             out.writeObject(value);
         }
         try (CompactObjectInputStream in = new CompactObjectInputStream(
                 new ByteArrayInputStream(bytes.toByteArray()), getClass().getClassLoader())) {
-            return (ServiceInvocationStruct) in.readObject();
+            return (T) in.readObject();
         }
     }
 }

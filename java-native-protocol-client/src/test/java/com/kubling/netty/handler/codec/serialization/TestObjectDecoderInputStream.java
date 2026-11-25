@@ -36,8 +36,40 @@ import java.net.SocketTimeoutException;
 import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class TestObjectDecoderInputStream {
+
+    private static final class CloseAwareBlockingInputStream extends InputStream {
+        private final CountDownLatch reading = new CountDownLatch(1);
+        private final CountDownLatch closed = new CountDownLatch(1);
+
+        @Override
+        public int read() throws IOException {
+            reading.countDown();
+            try {
+                closed.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IOException(e);
+            }
+            throw new IOException("closed");
+        }
+
+        @Override
+        public void close() {
+            closed.countDown();
+        }
+    }
 
     @Test
     public void testTimeoutException() throws Exception {
@@ -89,5 +121,33 @@ public class TestObjectDecoderInputStream {
         ObjectDecoderInputStream in = new ObjectDecoderInputStream(new AccessibleBufferedInputStream(new ByteArrayInputStream(baos.toByteArray()), 1024), Thread.currentThread().getContextClassLoader(), 1024);
         Object result = in.readObject();
         Assertion.assertTrue(result instanceof ClobImpl);
+    }
+
+    @Test
+    public void testEncoderAbortClosesActiveParameterStream() throws Exception {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        ObjectEncoderOutputStream out = new ObjectEncoderOutputStream(new DataOutputStream(bytes), 512);
+        CloseAwareBlockingInputStream stream = new CloseAwareBlockingInputStream();
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        try {
+            Future<?> write = executor.submit(() -> {
+                try {
+                    out.writeObject(stream);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+            assertTrue(stream.reading.await(1, TimeUnit.SECONDS));
+
+            out.abort();
+
+            ExecutionException exception = assertThrows(
+                    ExecutionException.class, () -> write.get(1, TimeUnit.SECONDS));
+            assertInstanceOf(IOException.class, exception.getCause().getCause());
+        } finally {
+            out.close();
+            executor.shutdownNow();
+            assertTrue(executor.awaitTermination(1, TimeUnit.SECONDS));
+        }
     }
 }
